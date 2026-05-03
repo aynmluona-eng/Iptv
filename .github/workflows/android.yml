@@ -1,0 +1,58 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. جلب الكود
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. إعداد Java 21 (تم التحديث هنا لحل مشكلة invalid source release)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21' 
+          cache: 'gradle'
+
+      # 3. إعداد Node.js 22
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      # 4. تثبيت المكتبات
+      - name: Install dependencies
+        run: npm ci
+
+      # 5. بناء نسخة الويب
+      - name: Build web app
+        run: npm run build --if-present
+
+      # 6. مزامنة Capacitor
+      - name: Capacitor Sync
+        run: |
+          npx cap sync android || (npx cap add android && npx cap sync android)
+
+      # 7. بناء ملف الـ APK
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      # 8. رفع ملف الـ APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          
