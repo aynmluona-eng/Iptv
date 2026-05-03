@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -10,54 +10,60 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. جلب الكود من GitHub
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. إعداد Java 21 (ضروري لتجنب خطأ invalid source release: 21)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
+          distribution: 'temurin'
+          java-version: '21'
 
-      - name: Setup Node
+      # 3. إعداد Node.js 22 (المطلوب من Capacitor CLI الحديث)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 22
+          cache: 'npm'
 
+      # 4. تثبيت المكتبات بشكل كامل
       - name: Install dependencies
         run: |
           npm install
           npm install @capacitor/cli @capacitor/core @capacitor/android
 
-      - name: Build web app
-        run: npm run build --if-present
-
-      # 🔥 أهم تعديل هنا
-      - name: Prepare Android safely
+      # 5. إنشاء مجلد الويب (index.html) لضمان عدم فشل المزامنة
+      - name: Ensure Web Assets Directory
         run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
+          mkdir -p www
+          if [ ! -f "www/index.html" ]; then
+            echo "<html><body><h1>Tfaarj IPTV Launcher</h1></body></html>" > www/index.html
           fi
-          npx cap sync android
 
-      # 🔥 إصلاح Gradle Wrapper لو ناقص
-      - name: Fix Gradle Wrapper
+      # 6. إضافة منصة أندرويد ومزامنتها
+      - name: Capacitor Sync
         run: |
-          cd android
-          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "Fixing Gradle wrapper..."
-            gradle wrapper || true
-          fi
-          chmod +x gradlew || true
+          npx cap sync android || (npx cap add android && npx cap sync android)
 
+      # 7. وضع اللوجو الخاص بك في مكانه الصحيح
+      - name: Setup App Logo
+        run: |
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          cp assets/logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png || echo "Logo not found in assets/"
+
+      # 8. بناء ملف الـ APK
       - name: Build APK
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
+      # 9. رفع ملف الـ APK لتتمكن من تحميله
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: Tfaarj-IPTV-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          
