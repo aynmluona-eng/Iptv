@@ -3,14 +3,14 @@ name: Build Android APK
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً من GitHub Actions
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. جلب الكود من المستودع
+      # 1. جلب الكود
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -22,23 +22,22 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # 3. إعداد Node.js مع تفعيل الـ Cache لتسريع التثبيت
+      # 3. إعداد Node.js 22 (المطلوب من قبل Capacitor CLI)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22 # تم التحديث هنا لحل مشكلة الـ fatal error
           cache: 'npm'
 
-      # 4. تثبيت المكتبات (Dependencies)
+      # 4. تثبيت المكتبات
       - name: Install dependencies
-        run: npm ci # أفضل من npm install في بيئة GitHub Actions لضمان مطابقة النسخ
+        run: npm ci
 
-      # 5. بناء نسخة الويب (Web Assets)
+      # 5. بناء نسخة الويب
       - name: Build web app
         run: npm run build --if-present
 
-      # 6. إعداد Capacitor وتحديث منصة أندرويد
-      # ملاحظة: تم إضافة 'add' في حال لم يكن المجلد مرفوعاً و 'sync' للتحديث
+      # 6. مزامنة Capacitor مع أندرويد
       - name: Capacitor Sync
         run: |
           npx cap sync android || (npx cap add android && npx cap sync android)
@@ -50,7 +49,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 8. رفع ملف الـ APK كـ Artifact لتحميله
+      # 8. رفع ملف الـ APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
