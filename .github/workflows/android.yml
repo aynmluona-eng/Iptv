@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
@@ -9,40 +9,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      # 🔥 Node 22 (مطلوب لـ Capacitor الجديد)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
+
+      - name: Update npm
+        run: npm install -g npm
 
       - name: Install dependencies
         run: npm install
 
+      # 🔥 تثبيت Capacitor بالكامل
       - name: Install Capacitor
         run: npm install @capacitor/cli @capacitor/core @capacitor/android
 
-      - name: Build web
+      - name: Build web app
         run: npm run build || echo "no build step"
 
-      - name: Sync Capacitor
+      # 🔥 Sync Android
+      - name: Sync Capacitor Android
         run: npx cap sync android
 
+      # 🔥 Java 17 (مستقر مع Android)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
+      # 🔥 Build APK
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      # 🔥 رفع APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app
+          name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
