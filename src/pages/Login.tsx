@@ -45,21 +45,42 @@ export default function Login({ onLogin }: LoginProps) {
 
       const targetUrl = `${baseUrl}/player_api.php`;
       
-      const response = await axios.get('/api/proxy', {
-        params: {
-          targetUrl,
-          username: username.trim(),
-          password: password.trim()
-        }
-      });
+      let response;
+      try {
+        response = await axios.get('/api/proxy', {
+          params: {
+            targetUrl,
+            username: username.trim(),
+            password: password.trim()
+          }
+        });
+      } catch (err: any) {
+        response = { data: null, isError: true, error: err };
+      }
 
       let responseData = response.data;
       if (typeof responseData === 'string') {
-        try {
-          responseData = JSON.parse(responseData);
-        } catch (e) {
-          // ignore
-        }
+         try { responseData = JSON.parse(responseData); } catch (e) {}
+      }
+
+      // If proxy missing (returned HTML SPA fallback) or proxy request failed, try direct request.
+      // This happens when app is packaged (Electron/Tauri) or hosted statically without a backend.
+      if (response.isError || (typeof responseData === 'string' && responseData.toLowerCase().includes('<!doctype html>'))) {
+         try {
+            response = await axios.get(targetUrl, {
+              params: {
+                username: username.trim(),
+                password: password.trim()
+              }
+            });
+            responseData = response.data;
+            if (typeof responseData === 'string') {
+               try { responseData = JSON.parse(responseData); } catch (e) {}
+            }
+         } catch (directErr: any) {
+            // Throw original error if proxy actually threw, else throw direct error
+            throw response.isError ? response.error : directErr;
+         }
       }
 
       if (responseData && responseData.user_info && responseData.user_info.auth === 1) {

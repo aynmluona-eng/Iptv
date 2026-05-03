@@ -41,14 +41,29 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
     params.action = action;
   }
   
-  const response = await axios.get('/api/proxy', { params });
+  let response;
+  try {
+    response = await axios.get('/api/proxy', { params });
+  } catch (err: any) {
+    response = { data: null, isError: true, error: err };
+  }
   
   let data = response.data;
   if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch (e) {}
+  }
+
+  if (response.isError || (typeof data === 'string' && data.toLowerCase().includes('<!doctype html>'))) {
     try {
-      data = JSON.parse(data);
-    } catch (e) {
-      // ignore
+      const directParams = { ...params };
+      delete directParams.targetUrl;
+      response = await axios.get(targetUrl, { params: directParams });
+      data = response.data;
+      if (typeof data === 'string') {
+         try { data = JSON.parse(data); } catch (e) {}
+      }
+    } catch (directErr: any) {
+      throw response.isError ? response.error : directErr;
     }
   }
   
@@ -77,5 +92,17 @@ export const getOriginalStreamUrl = (creds: XtreamCredentials, id: string | numb
 
 export const getStreamUrl = (creds: XtreamCredentials, id: string | number, type: 'live' | 'movie' | 'series' = 'live', ext: string = 'm3u8') => {
   const originalUrl = getOriginalStreamUrl(creds, id, type, ext);
+  
+  // If running in a packaged desktop/mobile app context where there's no custom backend proxy running
+  if (typeof window !== 'undefined' && (
+      window.location.protocol === 'file:' || 
+      window.location.protocol === 'tauri:' || 
+      window.location.protocol === 'app:' || 
+      window.location.protocol === 'capacitor:' || 
+      window.location.hostname === 'localhost' && window.location.port !== '3000' && window.location.port !== '')
+  ) {
+     return originalUrl;
+  }
+  
   return `/api/stream?url=${encodeURIComponent(originalUrl)}`;
 };
