@@ -66,30 +66,37 @@ export default function Login({ onLogin }: LoginProps) {
       // If proxy missing (returned HTML SPA fallback) or proxy request failed, try direct request.
       // This happens when app is packaged (Electron/Tauri) or hosted statically without a backend.
       if (response.isError || (typeof responseData === 'string' && responseData.toLowerCase().includes('<!doctype html>'))) {
+         const directUrl = `${targetUrl}?username=${encodeURIComponent(username.trim())}&password=${encodeURIComponent(password.trim())}`;
          try {
-            response = await axios.get(targetUrl, {
-              params: {
-                username: username.trim(),
-                password: password.trim()
-              }
-            });
-            responseData = response.data;
-            if (typeof responseData === 'string') {
-               try { responseData = JSON.parse(responseData); } catch (e) {}
+            const fetchRes = await fetch(directUrl);
+            const textResponse = await fetchRes.text();
+            
+            if (fetchRes.ok) {
+               responseData = textResponse;
+               try { responseData = JSON.parse(textResponse); } catch (e) {}
+            } else {
+               throw new Error(`HTTP Error ${fetchRes.status}: ${textResponse.slice(0, 100)}`);
             }
          } catch (directErr: any) {
-            // Throw original error if proxy actually threw, else throw direct error
-            throw response.isError ? response.error : directErr;
+            // Throw the direct error so the user sees the real network error
+            throw directErr;
          }
       }
 
-      if (responseData && responseData.user_info && responseData.user_info.auth === 1) {
-        toast.success('تم تسجيل الدخول بنجاح');
-        onLogin({ serverUrl, username, password });
+      if (responseData && typeof responseData === 'object' && 'user_info' in responseData) {
+        if (responseData.user_info && responseData.user_info.auth === 1) {
+          toast.success('تم تسجيل الدخول بنجاح');
+          onLogin({ serverUrl, username, password });
+        } else {
+          const msg = 'بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.';
+          setError(msg);
+          toast.error(msg);
+        }
       } else {
-        const msg = 'بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.';
+        const msg = 'رد غير متوقع من الخادم. يرجى التأكد من صحة الرابط وأن الخادم يدعم Xtream API.';
         setError(msg);
         toast.error(msg);
+        console.error("Invalid response format:", responseData);
       }
     } catch (err: any) {
       console.error(err);
@@ -107,7 +114,7 @@ export default function Login({ onLogin }: LoginProps) {
       }
       
       let finalErrMsg = '';
-      if (errDetails && typeof errDetails === 'string' && (errDetails.toLowerCase().includes('timeout') || errDetails.includes('ECONN') || errDetails.includes('ETIMEDOUT') || errDetails.includes('Failed to fetch'))) {
+      if (errDetails && typeof errDetails === 'string' && (errDetails.toLowerCase().includes('timeout') || errDetails.includes('ECONN') || errDetails.includes('ETIMEDOUT') || errDetails.includes('Failed to fetch') || errDetails.toLowerCase().includes('load failed') || errDetails.toLowerCase().includes('network error') || errDetails.toLowerCase().includes('fetch api cannot load'))) {
         finalErrMsg = `انتهى وقت الاتصال أو رفض الخادم الطلب. (${errDetails}) - قد يقوم مزود الخدمة الخاص بك بحظر الخوادم السحابية لمنع مشاركة الحسابات، أو أن الرابط غير صحيح.`;
       } else {
         finalErrMsg = `تعذر الاتصال بالخادم. ${errDetails}`;

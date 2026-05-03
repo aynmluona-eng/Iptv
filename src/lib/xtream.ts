@@ -57,13 +57,20 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
     try {
       const directParams = { ...params };
       delete directParams.targetUrl;
-      response = await axios.get(targetUrl, { params: directParams });
-      data = response.data;
-      if (typeof data === 'string') {
-         try { data = JSON.parse(data); } catch (e) {}
+      const queryString = new URLSearchParams(directParams as Record<string, string>).toString();
+      const directUrl = `${targetUrl}?${queryString}`;
+      
+      const fetchRes = await fetch(directUrl);
+      const textResponse = await fetchRes.text();
+      
+      if (fetchRes.ok) {
+         data = textResponse;
+         try { data = JSON.parse(textResponse); } catch (e) {}
+      } else {
+         throw new Error(`HTTP Error ${fetchRes.status}: ${textResponse.slice(0, 100)}`);
       }
     } catch (directErr: any) {
-      throw response.isError ? response.error : directErr;
+      throw directErr;
     }
   }
   
