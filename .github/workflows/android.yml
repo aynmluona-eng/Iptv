@@ -14,19 +14,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. إعداد Java (مطلوب لبناء أندرويد)
+      # 2. إعداد Java 21 (تم التحديث هنا لحل مشكلة invalid source release)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21' 
           cache: 'gradle'
 
-      # 3. إعداد Node.js 22 (المطلوب من قبل Capacitor CLI)
+      # 3. إعداد Node.js 22
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22 # تم التحديث هنا لحل مشكلة الـ fatal error
+          node-version: 22
           cache: 'npm'
 
       # 4. تثبيت المكتبات
@@ -37,7 +37,7 @@ jobs:
       - name: Build web app
         run: npm run build --if-present
 
-      # 6. مزامنة Capacitor مع أندرويد
+      # 6. مزامنة Capacitor
       - name: Capacitor Sync
         run: |
           npx cap sync android || (npx cap add android && npx cap sync android)
@@ -55,4 +55,3 @@ jobs:
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          
