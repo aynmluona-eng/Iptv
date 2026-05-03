@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -10,54 +10,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. جلب الكود
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. إعداد Java 21
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          distribution: temurin
+          java-version: 17
 
-      # 3. إعداد Node.js 22
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: 'npm'
+          node-version: 20
+          cache: npm
 
-      # 4. تثبيت المكتبات (استخدمنا install العادي لضمان التثبيت)
       - name: Install dependencies
         run: |
           npm install
           npm install @capacitor/cli @capacitor/core @capacitor/android
 
-      # 5. بناء نسخة الويب
       - name: Build web app
         run: npm run build --if-present
 
-      # 6. إنشاء ومزامنة مجلد أندرويد
-      # قمنا بإضافة التثبيت المباشر قبل المزامنة لضمان وجود الملف التنفيذي
-      - name: Capacitor Sync
+      # 🔥 أهم تعديل هنا
+      - name: Prepare Android safely
         run: |
-          npx cap sync android || (npx cap add android && npx cap sync android)
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
 
-      # 7. إعداد اللوجو (تأكد من وجود assets/logo.png)
-      - name: Setup App Logo
+      # 🔥 إصلاح Gradle Wrapper لو ناقص
+      - name: Fix Gradle Wrapper
         run: |
-          mkdir -p android/app/src/main/res/mipmap-mdpi
-          cp assets/logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png || echo "Logo not found"
+          cd android
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "Fixing Gradle wrapper..."
+            gradle wrapper || true
+          fi
+          chmod +x gradlew || true
 
-      # 8. بناء ملف الـ APK
       - name: Build APK
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      # 9. رفع ملف الـ APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
