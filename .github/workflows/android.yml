@@ -14,13 +14,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. إعداد Java 21 (تم التحديث هنا لحل مشكلة invalid source release)
+      # 2. إعداد Java (تم تعطيل الـ cache مؤقتاً لتجنب الخطأ)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21' 
-          cache: 'gradle'
+          java-version: '21'
 
       # 3. إعداد Node.js 22
       - name: Setup Node.js
@@ -37,22 +36,27 @@ jobs:
       - name: Build web app
         run: npm run build --if-present
 
-      # 6. مزامنة Capacitor
+      # 6. إنشاء ومزامنة مجلد أندرويد (هنا يتم بناء المجلد إذا لم يكن موجوداً)
       - name: Capacitor Sync
         run: |
           npx cap sync android || (npx cap add android && npx cap sync android)
 
-      # 7. بناء ملف الـ APK
+      # 7. إعداد اللوجو (تأكد من وجود assets/logo.png في مشروعك)
+      - name: Setup App Logo
+        run: |
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          cp assets/logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png || echo "Logo not found, skipping..."
+
+      # 8. بناء ملف الـ APK
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 8. رفع ملف الـ APK
+      # 9. رفع ملف الـ APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          
