@@ -42,53 +42,83 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
   }
   
   let isNative = false;
-  try {
-    isNative = Capacitor.isNativePlatform();
-  } catch (e) {}
+  let isPackaged = false;
+  
+  if (typeof window !== 'undefined') {
+      if (
+        window.location.protocol === 'file:' || 
+        window.location.protocol === 'tauri:' || 
+        window.location.protocol === 'app:' || 
+        window.location.protocol === 'capacitor:' || 
+        (window.location.hostname === 'localhost' && window.location.port !== '3000' && window.location.port !== '')
+      ) {
+        isPackaged = true;
+      }
+      try {
+        isNative = Capacitor.isNativePlatform() || !!(window as any).Capacitor?.isNative;
+      } catch (e) {}
+  }
 
   let data: any = null;
 
-  if (isNative) {
-    // 1. Native Capacitor HTTP (for Android/iOS bypassing CORS and blocks)
+  if (isNative || isPackaged) {
+    // 1. Native or Packaged (Android/iOS/Electron) - Try CapacitorHttp first, then fallback to fetch
     const queryString = new URLSearchParams(params as Record<string, string>).toString();
     const directUrl = `${targetUrl}?${queryString}`;
     
     let retries = 3;
     let lastError: any = null;
+    let nativeSuccess = false;
     
     while (retries > 0) {
       try {
         const response = await CapacitorHttp.get({
           url: directUrl,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'Accept': '*/*, application/json, text/plain'
           },
-          connectTimeout: 15000, // 15 seconds
+          connectTimeout: 15000,
           readTimeout: 15000
         });
 
         if (response.status === 200 || response.status === 201) {
           data = response.data;
-          if (typeof data === 'string') {
-            try { data = JSON.parse(data); } catch (e) {}
-          }
-          break; // Success, exit retry loop
+          if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) {} }
+          nativeSuccess = true;
+          break;
         } else {
           throw new Error(`Capacitor HTTP Error ${response.status}: ${JSON.stringify(response.data)}`);
         }
       } catch (nativeErr: any) {
         lastError = nativeErr;
         retries--;
-        console.warn(`Native HTTP failed. Retries left: ${retries}`, nativeErr);
         if (retries === 0) {
-          throw new Error(`Native Request Failed: ${lastError.message || String(lastError)}`);
+          console.warn(`Capacitor HTTP failed completely:`, nativeErr);
+          break;
         }
-        // Wait 1.5 seconds before retrying
         await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }
+
+    if (!nativeSuccess) {
+       // Fallback to fetch if CapacitorHttp failing but we are packaged
+       try {
+         const fetchRes = await fetch(directUrl);
+         const textResponse = await fetchRes.text();
+         if (fetchRes.ok) {
+            data = textResponse;
+            try { data = JSON.parse(textResponse); } catch(e){}
+         } else {
+            throw new Error(`HTTP ${fetchRes.status}`);
+         }
+       } catch (fallbackErr: any) {
+         throw new Error(`مشكلة في الاتصال بالموزع: ${fallbackErr.message || fallbackErr} | مسار Capacitor: ${lastError?.message || 'فشل'}`);
+       }
+    }
+
   } else {
-    // 2. We are on WEB. Try AI Studio Backend Proxy
+    // 2. We are on WEB (AI Studio). Try AI Studio Backend Proxy
     let proxyResponse;
     const proxyParams = { ...params, targetUrl };
     try {
@@ -118,7 +148,7 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
            throw new Error(`HTTP Error ${fetchRes.status}`);
         }
       } catch (directErr: any) {
-        throw directErr;
+        throw new Error(`Fallback Web Fetch: ${directErr.message || directErr}`);
       }
     }
   }
