@@ -14,16 +14,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 22
+
+      - name: Verify Node
+        run: node -v
 
       - name: Install dependencies
         run: npm install
 
       - name: Build web
         run: npm run build
+
+      - name: Install Capacitor CLI
+        run: npm install -g @capacitor/cli
 
       - name: Sync Capacitor
         run: npx cap sync android
