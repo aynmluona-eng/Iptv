@@ -1,6 +1,6 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { LogIn, Tv, Play, X } from 'lucide-react';
-import { XtreamCredentials } from '../lib/xtream';
+import { fetchXtreamApi, XtreamCredentials } from '../lib/xtream';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -43,50 +43,18 @@ export default function Login({ onLogin }: LoginProps) {
       if (baseUrl.includes('/player_api.php')) baseUrl = baseUrl.split('/player_api.php')[0];
       if (baseUrl.includes('/panel_api.php')) baseUrl = baseUrl.split('/panel_api.php')[0];
 
-      const targetUrl = `${baseUrl}/player_api.php`;
-      
-      let response;
-      try {
-        response = await axios.get('/api/proxy', {
-          params: {
-            targetUrl,
-            username: username.trim(),
-            password: password.trim()
-          }
-        });
-      } catch (err: any) {
-        response = { data: null, isError: true, error: err };
-      }
+      const creds = {
+        serverUrl: baseUrl,
+        username: username.trim(),
+        password: password.trim()
+      };
 
-      let responseData = response.data;
-      if (typeof responseData === 'string') {
-         try { responseData = JSON.parse(responseData); } catch (e) {}
-      }
-
-      // If proxy missing (returned HTML SPA fallback) or proxy request failed, try direct request.
-      // This happens when app is packaged (Electron/Tauri) or hosted statically without a backend.
-      if (response.isError || (typeof responseData === 'string' && responseData.toLowerCase().includes('<!doctype html>'))) {
-         const directUrl = `${targetUrl}?username=${encodeURIComponent(username.trim())}&password=${encodeURIComponent(password.trim())}`;
-         try {
-            const fetchRes = await fetch(directUrl);
-            const textResponse = await fetchRes.text();
-            
-            if (fetchRes.ok) {
-               responseData = textResponse;
-               try { responseData = JSON.parse(textResponse); } catch (e) {}
-            } else {
-               throw new Error(`HTTP Error ${fetchRes.status}: ${textResponse.slice(0, 100)}`);
-            }
-         } catch (directErr: any) {
-            // Throw the direct error so the user sees the real network error
-            throw directErr;
-         }
-      }
+      const responseData = await fetchXtreamApi(creds);
 
       if (responseData && typeof responseData === 'object' && 'user_info' in responseData) {
         if (responseData.user_info && responseData.user_info.auth === 1) {
           toast.success('تم تسجيل الدخول بنجاح');
-          onLogin({ serverUrl, username, password });
+          onLogin(creds);
         } else {
           const msg = 'بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.';
           setError(msg);
@@ -100,22 +68,25 @@ export default function Login({ onLogin }: LoginProps) {
       }
     } catch (err: any) {
       console.error(err);
+      const isNetworkError = err.message?.toLowerCase().includes('network') || err.message?.toLowerCase().includes('fetch') || err.message?.toLowerCase().includes('capacitor');
+      
       if (err.response?.status === 404 || err.response?.status === 403) {
          const msg = 'رابط الخادم غير صحيح، أو أن الخادم يرفض الاتصال. تأكد من صحة الرابط.';
          setError(msg);
          toast.error(msg);
          return;
       }
+      
       let errDetails = err.response?.data?.error || err.response?.data?.details || err.response?.data || err.message;
       if (typeof errDetails === 'object') {
-        try {
-           errDetails = JSON.stringify(errDetails);
-        } catch(e) {}
+        try { errDetails = JSON.stringify(errDetails); } catch(e) {}
       }
       
       let finalErrMsg = '';
-      if (errDetails && typeof errDetails === 'string' && (errDetails.toLowerCase().includes('timeout') || errDetails.includes('ECONN') || errDetails.includes('ETIMEDOUT') || errDetails.includes('Failed to fetch') || errDetails.toLowerCase().includes('load failed') || errDetails.toLowerCase().includes('network error') || errDetails.toLowerCase().includes('fetch api cannot load'))) {
-        finalErrMsg = `انتهى وقت الاتصال أو رفض الخادم الطلب. (${errDetails}) - قد يقوم مزود الخدمة الخاص بك بحظر الخوادم السحابية لمنع مشاركة الحسابات، أو أن الرابط غير صحيح.`;
+      if (errDetails && typeof errDetails === 'string' && (errDetails.toLowerCase().includes('timeout') || errDetails.includes('ECONN') || errDetails.includes('ETIMEDOUT') || errDetails.includes('failed to fetch') || errDetails.toLowerCase().includes('load failed') || errDetails.toLowerCase().includes('network error') || errDetails.toLowerCase().includes('fetch api cannot load'))) {
+        finalErrMsg = `انتهى وقت الاتصال أو رفض الخادم الطلب. (${errDetails}) - قد يقوم مزود الخدمة الخاص بك بحظر الخوادم السحابية أو التطبيق.`;
+      } else if (isNetworkError) {
+        finalErrMsg = `لا يوجد اتصال بالإنترنت أو أن مزود الخدمة يحظر التطبيق.`;
       } else {
         finalErrMsg = `تعذر الاتصال بالخادم. ${errDetails}`;
       }

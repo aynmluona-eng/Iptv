@@ -31,7 +31,6 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
   const targetUrl = `${baseUrl}/player_api.php`;
   
   const params: any = {
-    targetUrl,
     username: creds.username,
     password: creds.password,
     ...extraParams
@@ -41,36 +40,71 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
     params.action = action;
   }
   
-  let response;
-  try {
-    response = await axios.get('/api/proxy', { params });
-  } catch (err: any) {
-    response = { data: null, isError: true, error: err };
-  }
-  
-  let data = response.data;
-  if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch (e) {}
-  }
+  let data: any = null;
 
-  if (response.isError || (typeof data === 'string' && data.toLowerCase().includes('<!doctype html>'))) {
-    try {
-      const directParams = { ...params };
-      delete directParams.targetUrl;
-      const queryString = new URLSearchParams(directParams as Record<string, string>).toString();
+  try {
+    // 1. Try Native Capacitor HTTP first (for Android/iOS bypassing CORS and blocks)
+    // Dynamic import to avoid errors if not running in Capacitor environment
+    const { Capacitor, CapacitorHttp } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      const queryString = new URLSearchParams(params as Record<string, string>).toString();
       const directUrl = `${targetUrl}?${queryString}`;
       
-      const fetchRes = await fetch(directUrl);
-      const textResponse = await fetchRes.text();
-      
-      if (fetchRes.ok) {
-         data = textResponse;
-         try { data = JSON.parse(textResponse); } catch (e) {}
+      const response = await CapacitorHttp.get({
+        url: directUrl,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+        },
+        connectTimeout: 15000, // 15 seconds
+        readTimeout: 15000
+      });
+
+      if (response.status === 200 || response.status === 201) {
+        data = response.data;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch (e) {}
+        }
       } else {
-         throw new Error(`HTTP Error ${fetchRes.status}: ${textResponse.slice(0, 100)}`);
+        throw new Error(`Capacitor HTTP Error ${response.status}`);
       }
-    } catch (directErr: any) {
-      throw directErr;
+    }
+  } catch (nativeErr) {
+    console.warn("Native HTTP failed, falling back", nativeErr);
+  }
+
+  // 2. If data is still null, we are on WEB. Try AI Studio Backend Proxy
+  if (!data) {
+    let proxyResponse;
+    const proxyParams = { ...params, targetUrl };
+    try {
+      proxyResponse = await axios.get('/api/proxy', { params: proxyParams });
+      data = proxyResponse.data;
+    } catch (err: any) {
+      proxyResponse = { data: null, isError: true, error: err };
+    }
+
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch (e) {}
+    }
+
+    // 3. Fallback to direct fetch if proxy fails or returns HTML (SPA fallback)
+    if (proxyResponse?.isError || (typeof data === 'string' && data.toLowerCase().includes('<!doctype html>'))) {
+      const queryString = new URLSearchParams(params as Record<string, string>).toString();
+      const directUrl = `${targetUrl}?${queryString}`;
+      
+      try {
+        const fetchRes = await fetch(directUrl);
+        const textResponse = await fetchRes.text();
+        
+        if (fetchRes.ok) {
+           data = textResponse;
+           try { data = JSON.parse(textResponse); } catch (e) {}
+        } else {
+           throw new Error(`HTTP Error ${fetchRes.status}`);
+        }
+      } catch (directErr: any) {
+        throw directErr;
+      }
     }
   }
   

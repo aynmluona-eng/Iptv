@@ -1,6 +1,0 @@
-{
-	"appId": "com.iptv.app",
-	"appName": "Iptv",
-	"webDir": "dist",
-	"bundledWebRuntime": false
-}
