@@ -10,6 +10,7 @@ interface MovieCardProps {
   credentials: XtreamCredentials;
   idx?: number;
   className?: string;
+  key?: React.Key;
 }
 
 export default function MovieCard({ movie, credentials, idx = 0, className = "" }: MovieCardProps) {

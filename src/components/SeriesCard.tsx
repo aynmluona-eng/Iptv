@@ -10,6 +10,7 @@ interface SeriesCardProps {
   credentials: XtreamCredentials;
   idx?: number;
   className?: string;
+  key?: React.Key;
 }
 
 export default function SeriesCard({ series, credentials, idx = 0, className = "" }: SeriesCardProps) {
