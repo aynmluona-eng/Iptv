@@ -1,20 +1,68 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Tfaarj (تفرج) - IPTV Web & Android App
 
-# Run and deploy your AI Studio app
+تطبيق تفرج هو مشغل IPTV متكامل يدعم واجهات Xtream Codes، ويدعم التشغيل كـ Web App أو كـ Native Android App باستخدام إطار عمل Capacitor.
 
-This contains everything you need to run your app locally.
+## المميزات الأساسية
+* **تصميم عصري وجذاب:** واجهة مستخدم (UI/UX) مبنية باستخدام React و Tailwind CSS.
+* **الأفلام والمسلسلات والقنوات الحية:** دعم كامل للأقسام الثلاثة مع جلب المعلومات والصور المرفقة.
+* **المفضلة:** إمكانية حفظ القنوات أو الأفلام أو المسلسلات للوصول السريع إليها.
+* **البحث المتقدم:** بحث سريع داخل الأقسام مع دعم التصنيفات.
+* **تجاوز الحظر وإصلاح أخطاء (Failed to fetch):** 
+  * في نسخة الويب، يتم الاعتماد على Proxy أو Fetch مباشر لتخطي قيود CORS (في حالة السماح بذلك).
+  * في نسخة الأندرويد (Capacitor)، تم تغيير الاعتماد على `fetch` و `axios` لاستخدام مكتبة `@capacitor/core` بشكل مباشر (CapacitorHttp plugin)، مع إضافة Headers مخصصة مثل `User-Agent` للكمبيوتر المكتبي لتخطي حظر بعض مزودات الخدمة (ISP) أو الخوادم التي تمنع تطبيقات الهاتف من الاتصال.
 
-View your app in AI Studio: https://ai.studio/apps/3a852aed-1601-4bbc-885e-f256215e906b
+## المتطلبات الأساسية للتشغيل والبناء (النسخة الأصلية)
+* **Node.js** (إصدار 22 مستحسن)
+* لتطبيق الأندرويد: **Java SDK** (إصدار 21 مستحسن) و Android Studio أو أدوات سطر الأوامر (Command-Line Tools).
 
-## Run Locally
+## إعداد المشروع
 
-**Prerequisites:**  Node.js
+1. **تثبيت الحزم (Dependencies):**
+```bash
+npm install
+```
 
+2. **تشغيل نسخة الويب محلياً (Web App):**
+```bash
+npm run dev
+// أو إذا كان المشروع يعتمد على tsx server:
+npm start
+```
+سيقوم هذا الخيار ببدء تشغيل خادم التطوير (عادةً على البورت 3000)، والتطبيق جاهز للاستخدام من المتصفح مباشرة.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## تحويل التطبيق لـ Native Android App باستخدام Capacitor
+
+المشروع جاهز ومُعد ليعمل كتطبيق أندرويد بشكل سلس، مع دعم روابط الـ HTTP وبدون مشاكل CORS بفضل إعدادات CapacitorHttp.
+
+1. **بناء نسخة الويب أولاً:**
+```bash
+npm run build
+```
+
+2. **تهيئة (Sync) تطبيق الأندرويد:**
+```bash
+npx cap add android
+npx cap sync android
+```
+
+3. **تشغيل المشروع داخل Android Studio:**
+```bash
+npx cap open android
+```
+- يمكنك من داخل Android Studio تركيب (Build) ملفات APK أو AAB.
+
+### التعديلات التي تم تطبيقها لدعم الأندرويد وتجاوز الحظر:
+- **`capacitor.config.json`:** تم تفعيل `cleartext: true` و `androidScheme: "http"` ليتوافق مع جميع روابط الـ IPTV بفضل إضافة السماحية من الـ OS. كما تم تفعيل الإضافة `CapacitorHttp`.
+- **`AndroidManifest.xml`:** أضيفت صلاحيات الوصول إلى الإنترنت (`INTERNET` و `ACCESS_NETWORK_STATE`)، وفُعّلت خاصية `usesCleartextTraffic="true"`.
+- **`network_security_config.xml`:** تم إنشاؤه للسماح بمرور حركة المرور غير المشفرة.
+- **التخطي بـ User-Agent:** تم استخدام حزمة بيئة Native داخل `xtream.ts` مع وضع User-Agent لمتصفح Chrome على نظام Windows حتى لا تتعرف الخوادم على أن الطلب قادم من تطبيق للهاتف النقال.
+
+## حل المشاكل الشائعة
+
+* **خطأ "انتهى وقت الاتصال" أو "Failed to fetch":** 
+  * في الغالب، الخادم يحظر التطبيقات أو أن هناك حظرًا من مزود الخدمة، لقد تم تحسين كود الاتصال ليحاول 3 مرات في نسخة الـ Native Android، وفي حالة وجود حظر يعرض النظام للمستخدم رسالة دقيقة حول حالة الشبكة.
+* **روابط الأفلام أو القنوات لا تعمل في الويب:** 
+  * بسبب حماية المتصفح، قد لا تسمح بعض الخوادم بالتشغيل داخل مواقع أخرى (CORS Error)، أفضل حل هو استخدام نسخة الـ Native (Android) أو تطبيق Electron حيث تم تخطي هذه الحماية تماماً.
+
+---
+بُني هذا التطبيق من أجل توفير بيئة مشاهدة شخصية. تأكد من أن تمتلك صلاحيات تشغيل الروابط التي تضيفها في التطبيق.
