@@ -1,3 +1,4 @@
+
 name: Build Android APK
 
 on:
@@ -30,23 +31,23 @@ jobs:
           npm install
           npm install @capacitor/cli @capacitor/core @capacitor/android
 
-      # 🔥 أهم خطوة: إنشاء مجلد www والتأكد من وجود ملف index.html
-      - name: Force Create Web Assets
+      # 🔥 التغيير الجوهري: إنشاء مجلد dist بدلاً من www
+      - name: Force Create Web Assets (dist)
         run: |
-          mkdir -p www
-          echo '<!DOCTYPE html><html><body style="background:#000;color:#fff;"><h1>Tfaarj IPTV</h1></body></html>' > www/index.html
+          mkdir -p dist
+          echo '<!DOCTYPE html><html><body style="background:#000;color:#fff;text-align:center;"><h1>Tfaarj IPTV Launcher</h1></body></html>' > dist/index.html
 
-      # 🔥 المزامنة: إذا وجد مجلد أندرويد قديماً سيحذفه ويبدأ من جديد لتجنب التعارض
+      # 🔥 المزامنة: مسح الأندرويد القديم لضمان نظافة الإعدادات الجديدة
       - name: Capacitor Sync
         run: |
-          npx cap sync android || (rm -rf android && npx cap add android && npx cap sync android)
+          rm -rf android
+          npx cap add android
+          npx cap sync android
 
       - name: Repair Gradle Wrapper
         run: |
           cd android
-          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            gradle wrapper
-          fi
+          gradle wrapper
           chmod +x gradlew
 
       - name: Setup App Logo
@@ -62,5 +63,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Tfaarj-IPTV-Final
+          name: Tfaarj-IPTV-v1
           path: android/app/build/outputs/apk/debug/app-debug.apk
