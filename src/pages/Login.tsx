@@ -86,7 +86,7 @@ export default function Login({ onLogin }: LoginProps) {
       if (errDetails && typeof errDetails === 'string' && (errDetails.toLowerCase().includes('timeout') || errDetails.includes('ECONN') || errDetails.includes('ETIMEDOUT') || errDetails.includes('failed to fetch') || errDetails.toLowerCase().includes('load failed') || errDetails.toLowerCase().includes('network error') || errDetails.toLowerCase().includes('fetch api cannot load'))) {
         finalErrMsg = `انتهى وقت الاتصال أو رفض الخادم الطلب. (${errDetails}) - قد يقوم مزود الخدمة الخاص بك بحظر الخوادم السحابية أو التطبيق.`;
       } else if (isNetworkError) {
-        finalErrMsg = `لا يوجد اتصال بالإنترنت أو أن مزود الخدمة يحظر التطبيق.`;
+        finalErrMsg = `لا يوجد اتصال بالإنترنت أو أن مزود الخدمة يحظر التطبيق. (${errDetails})`;
       } else {
         finalErrMsg = `تعذر الاتصال بالخادم. ${errDetails}`;
       }

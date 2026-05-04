@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 export interface XtreamCredentials {
   serverUrl: string;
@@ -40,40 +41,54 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
     params.action = action;
   }
   
+  let isNative = false;
+  try {
+    isNative = Capacitor.isNativePlatform();
+  } catch (e) {}
+
   let data: any = null;
 
-  try {
-    // 1. Try Native Capacitor HTTP first (for Android/iOS bypassing CORS and blocks)
-    // Dynamic import to avoid errors if not running in Capacitor environment
-    const { Capacitor, CapacitorHttp } = await import('@capacitor/core');
-    if (Capacitor.isNativePlatform()) {
-      const queryString = new URLSearchParams(params as Record<string, string>).toString();
-      const directUrl = `${targetUrl}?${queryString}`;
-      
-      const response = await CapacitorHttp.get({
-        url: directUrl,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
-        },
-        connectTimeout: 15000, // 15 seconds
-        readTimeout: 15000
-      });
+  if (isNative) {
+    // 1. Native Capacitor HTTP (for Android/iOS bypassing CORS and blocks)
+    const queryString = new URLSearchParams(params as Record<string, string>).toString();
+    const directUrl = `${targetUrl}?${queryString}`;
+    
+    let retries = 3;
+    let lastError: any = null;
+    
+    while (retries > 0) {
+      try {
+        const response = await CapacitorHttp.get({
+          url: directUrl,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+          },
+          connectTimeout: 15000, // 15 seconds
+          readTimeout: 15000
+        });
 
-      if (response.status === 200 || response.status === 201) {
-        data = response.data;
-        if (typeof data === 'string') {
-          try { data = JSON.parse(data); } catch (e) {}
+        if (response.status === 200 || response.status === 201) {
+          data = response.data;
+          if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) {}
+          }
+          break; // Success, exit retry loop
+        } else {
+          throw new Error(`Capacitor HTTP Error ${response.status}: ${JSON.stringify(response.data)}`);
         }
-      } else {
-        throw new Error(`Capacitor HTTP Error ${response.status}`);
+      } catch (nativeErr: any) {
+        lastError = nativeErr;
+        retries--;
+        console.warn(`Native HTTP failed. Retries left: ${retries}`, nativeErr);
+        if (retries === 0) {
+          throw new Error(`Native Request Failed: ${lastError.message || String(lastError)}`);
+        }
+        // Wait 1.5 seconds before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }
-  } catch (nativeErr) {
-    console.warn("Native HTTP failed, falling back", nativeErr);
-  }
-
-  // 2. If data is still null, we are on WEB. Try AI Studio Backend Proxy
-  if (!data) {
+  } else {
+    // 2. We are on WEB. Try AI Studio Backend Proxy
     let proxyResponse;
     const proxyParams = { ...params, targetUrl };
     try {
