@@ -1,6 +1,6 @@
 {
-  "appId": "com.aynmluona.iptv",
-  "appName": "Tfaarj IPTV",
+  "appId": "com.iptv.app",
+  "appName": "Iptv",
   "webDir": "dist",
   "bundledWebRuntime": false
 }
