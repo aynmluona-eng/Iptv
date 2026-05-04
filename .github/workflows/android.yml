@@ -1,55 +1,38 @@
-name: Build Android APK
+٧name: Build Android APK
 
 on:
-  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Node 22 (مهم لـ Capacitor)
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
-      # تثبيت الحزم
       - name: Install dependencies
         run: npm install
 
-      # 🔥 بناء React (ينشئ dist)
-      - name: Build web app
+      - name: Build web
         run: npm run build
 
-      # تأكيد أن dist موجود
-      - name: Check dist folder
-        run: ls -la dist
-
-      # مزامنة Capacitor
       - name: Sync Capacitor
         run: npx cap sync android
 
-      # Java للأندرويد
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      # بناء APK
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # رفع APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
