@@ -1,0 +1,88 @@
+name: Build Android App (Capacitor)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK & AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web App
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: |
+          npm install @capacitor/cli @capacitor/core @capacitor/android
+          npm install -D @capacitor/assets
+          if [ ! -d "android" ]; then
+            npx cap add android
+          else
+            npx cap sync android
+          fi
+
+      - name: Apply Custom Android Configuration
+        run: |
+          # Copy custom network settings and manifest to override Capacitor defaults
+          mkdir -p android/app/src/main/res/xml
+          if [ -f "android_config/AndroidManifest.xml" ]; then
+            cp android_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          fi
+          if [ -f "android_config/network_security_config.xml" ]; then
+            cp android_config/network_security_config.xml android/app/src/main/res/xml/network_security_config.xml
+          fi
+
+      - name: Generate App Icons
+        run: |
+          # Check if assets directory exists (the user should upload icon.png and splash.png to it)
+          if [ -d "assets" ]; then
+            npx capacitor-assets generate
+          else
+            echo "No assets folder found. Please create 'assets/icon.png' and 'assets/splash.png' to generate branding."
+          fi
+
+      - name: Set executable permissions for Gradle
+        working-directory: ./android
+        run: chmod +x ./gradlew
+
+      - name: Build APK (Debug)
+        working-directory: ./android
+        run: ./gradlew assembleDebug
+
+      - name: Build AAB (Debug)
+        working-directory: ./android
+        run: ./gradlew bundleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-aab
+          path: android/app/build/outputs/bundle/debug/app-debug.aab
