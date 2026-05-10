@@ -33,15 +33,12 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Sync Capacitor Android
+      - name: Prepare fresh Android project
         run: |
           npm install @capacitor/cli @capacitor/core @capacitor/android
           npm install -D @capacitor/assets
-          if [ ! -d "android" ]; then
-            npx cap add android
-          else
-            npx cap sync android
-          fi
+          rm -rf android
+          npx cap add android
 
       - name: Apply Custom Android Configuration
         run: |
@@ -62,13 +59,6 @@ jobs:
           else
             echo "No assets folder found. Please create 'assets/icon.png' and 'assets/splash.png' to generate branding."
           fi
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Regenerate Gradle Wrapper
-        working-directory: ./android
-        run: gradle wrapper
 
       - name: Set executable permissions for Gradle
         working-directory: ./android
