@@ -63,6 +63,13 @@ jobs:
             echo "No assets folder found. Please create 'assets/icon.png' and 'assets/splash.png' to generate branding."
           fi
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Regenerate Gradle Wrapper
+        working-directory: ./android
+        run: gradle wrapper
+
       - name: Set executable permissions for Gradle
         working-directory: ./android
         run: chmod +x ./gradlew
