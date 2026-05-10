@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">تفرج IPTV Player</string>
-    <string name="title_activity_main">تفرج IPTV Player</string>
+    <string name="app_name">تفرج</string>
+    <string name="title_activity_main">تفرج</string>
     <string name="package_name">com.tafaraj.iptvplayer</string>
     <string name="custom_url_scheme">com.tafaraj.iptvplayer</string>
 </resources>

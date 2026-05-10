@@ -1,6 +1,6 @@
 {
 	"appId": "com.tafaraj.iptvplayer",
-	"appName": "تفرج IPTV Player",
+	"appName": "تفرج",
 	"webDir": "dist",
 	"server": {
 		"androidScheme": "http",
