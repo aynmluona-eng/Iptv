@@ -33,35 +33,16 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Prepare fresh Android project
+      - name: Fix and Sync Android Project
         run: |
           npm install @capacitor/cli @capacitor/core @capacitor/android
-          npm install -D @capacitor/assets
-          rm -rf android
-          npx cap add android
-
-      - name: Apply Custom Android Configuration
-        run: |
-          # Copy custom network settings and manifest to override Capacitor defaults
-          mkdir -p android/app/src/main/res/xml
-          if [ -f "android_config/AndroidManifest.xml" ]; then
-            cp android_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          fi
-          if [ -f "android_config/network_security_config.xml" ]; then
-            cp android_config/network_security_config.xml android/app/src/main/res/xml/network_security_config.xml
-          fi
-
-      - name: Generate App Icons
-        run: |
-          if [ -d "resources" ]; then
-            npx capacitor-assets generate --android
-          else
-            echo "No resources folder found. Please create 'resources/icon.png' and 'resources/splash.png' to generate branding."
-          fi
+          npm install @capacitor/assets --save-dev
+          rm -rf android/app/src/main/res/mipmap-*
+          npx capacitor-assets generate --android
+          npx cap sync android
 
       - name: Set executable permissions for Gradle
-        working-directory: ./android
-        run: chmod +x ./gradlew
+        run: chmod +x android/gradlew
 
       - name: Build APK (Debug)
         working-directory: ./android
