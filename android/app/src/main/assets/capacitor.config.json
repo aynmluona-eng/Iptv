@@ -1,0 +1,17 @@
+{
+	"appId": "com.tafaraj.iptvplayer",
+	"appName": "تفرج IPTV Player",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "http",
+		"cleartext": true,
+		"allowNavigation": [
+			"*"
+		]
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	}
+}
