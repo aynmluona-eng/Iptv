@@ -20,15 +20,18 @@ import Favorites from './pages/Favorites';
 import Settings from './pages/Settings';
 
 export default function App() {
-  const [credentials, setCredentials] = useState<XtreamCredentials | null>(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const saved = localStorage.getItem('xtream_credentials');
+  const [credentials, setCredentials] = useState<XtreamCredentials | null>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('xtream_credentials') : null;
     if (saved) {
-      setCredentials(JSON.parse(saved));
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
     }
-  }, []);
+    return null;
+  });
+  const navigate = useNavigate();
 
   const handleLogin = (creds: XtreamCredentials) => {
     localStorage.setItem('xtream_credentials', JSON.stringify(creds));
@@ -44,6 +47,10 @@ export default function App() {
 
   if (credentials === null && window.location.pathname !== '/login') {
     return <Navigate to="/login" replace />;
+  }
+
+  if (credentials !== null && window.location.pathname === '/login') {
+    return <Navigate to="/" replace />;
   }
 
   return (
