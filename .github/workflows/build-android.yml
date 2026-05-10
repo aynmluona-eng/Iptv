@@ -41,8 +41,10 @@ jobs:
           npx capacitor-assets generate --android
           npx cap sync android
 
-      - name: Set executable permissions for Gradle
-        run: chmod +x android/gradlew
+      - name: Set executable permissions and fix Gradle wrapper
+        run: |
+          chmod +x android/gradlew
+          cd android && gradle wrapper --gradle-version 8.14.3
 
       - name: Build APK (Debug)
         working-directory: ./android
