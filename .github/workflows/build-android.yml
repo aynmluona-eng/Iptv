@@ -53,11 +53,10 @@ jobs:
 
       - name: Generate App Icons
         run: |
-          # Check if assets directory exists (the user should upload icon.png and splash.png to it)
-          if [ -d "assets" ]; then
-            npx capacitor-assets generate
+          if [ -d "resources" ]; then
+            npx capacitor-assets generate --android
           else
-            echo "No assets folder found. Please create 'assets/icon.png' and 'assets/splash.png' to generate branding."
+            echo "No resources folder found. Please create 'resources/icon.png' and 'resources/splash.png' to generate branding."
           fi
 
       - name: Set executable permissions for Gradle
