@@ -202,3 +202,5 @@ export const getStreamUrl = (creds: XtreamCredentials, id: string | number, type
   
   return `/api/stream?url=${encodeURIComponent(originalUrl)}`;
 };
+
+export const epgCache = new Map<string, { timestamp: number, data: any }>();
