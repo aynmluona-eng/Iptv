@@ -334,7 +334,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     }
   };
 
-  const openExternalPlayer = (playerExt: 'vlc' | 'mx', e?: React.MouseEvent) => {
+  const openExternalPlayer = async (playerExt: 'vlc' | 'mx', e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!type || !id) return;
     const streamUrl = getOriginalStreamUrl(credentials, id, type, ext);
@@ -343,21 +343,41 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     // Simple intent handling based on userAgent
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isAndroid = /Android/.test(navigator.userAgent);
+    const scheme = streamUrl.startsWith('https') ? 'https' : 'http';
     
+    let intentUrl = '';
+
     if (playerExt === 'vlc') {
       if (isIOS) {
-        window.location.href = `vlc-x-callback://x-callback-url/stream?url=${encodedUrl}`;
+        intentUrl = `vlc-x-callback://x-callback-url/stream?url=${encodedUrl}`;
       } else if (isAndroid) {
-        window.location.href = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;package=org.videolan.vlc;type=video/*;scheme=http;end`;
+        intentUrl = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;package=org.videolan.vlc;type=video/*;scheme=${scheme};end`;
       } else {
         window.open(streamUrl, '_blank');
+        return;
       }
     } else if (playerExt === 'mx') {
       if (isAndroid) {
-         window.location.href = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;type=video/*;end`;
+         intentUrl = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;package=com.mxtech.videoplayer.ad;type=video/*;scheme=${scheme};end`;
       } else {
          window.open(streamUrl, '_blank');
+         return;
       }
+    }
+
+    if (intentUrl) {
+       try {
+         const isNativeApp = !!(window as any).Capacitor?.isNative;
+         if (isNativeApp) {
+            const { App } = await import('@capacitor/app');
+            await App.openUrl({ url: intentUrl });
+         } else {
+            window.location.href = intentUrl;
+         }
+       } catch (err) {
+         console.error("Failed to open external app:", err);
+         toast.error("حدث خطأ أثناء فتح المشغل الخارجي. قد لا يكون مثبتاً.");
+       }
     }
   };
 

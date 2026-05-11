@@ -32,5 +32,11 @@
 
     <!-- Permissions -->
 
+    <queries>
+        <package android:name="org.videolan.vlc" />
+        <package android:name="com.mxtech.videoplayer.ad" />
+        <package android:name="com.mxtech.videoplayer.pro" />
+    </queries>
+
     <uses-permission android:name="android.permission.INTERNET" />
 </manifest>
