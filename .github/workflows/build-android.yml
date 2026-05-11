@@ -33,9 +33,14 @@ jobs:
       - name: Build Web App
         run: npm run build
 
+      - name: Clean up old webp assets
+        run: find android/app/src/main/res -name "*.webp" -type f -delete
+
       - name: Fix and Sync Android Project
         run: |
           npm install @capacitor/cli @capacitor/core @capacitor/android
+          npm install @capacitor/assets --save-dev
+          npx @capacitor/assets generate --android
           npx cap sync android
 
       - name: Set executable permissions and fix Gradle wrapper
