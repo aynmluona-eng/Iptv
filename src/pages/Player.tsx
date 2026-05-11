@@ -351,14 +351,14 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
       if (isIOS) {
         intentUrl = `vlc-x-callback://x-callback-url/stream?url=${encodedUrl}`;
       } else if (isAndroid) {
-        intentUrl = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;package=org.videolan.vlc;type=video/*;scheme=${scheme};end`;
+        intentUrl = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;action=android.intent.action.VIEW;package=org.videolan.vlc;type=video/*;scheme=${scheme};end`;
       } else {
         window.open(streamUrl, '_blank');
         return;
       }
     } else if (playerExt === 'mx') {
       if (isAndroid) {
-         intentUrl = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;package=com.mxtech.videoplayer.ad;type=video/*;scheme=${scheme};end`;
+         intentUrl = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;action=android.intent.action.VIEW;package=com.mxtech.videoplayer.ad;type=video/*;scheme=${scheme};end`;
       } else {
          window.open(streamUrl, '_blank');
          return;
@@ -370,7 +370,11 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
          const isNativeApp = !!(window as any).Capacitor?.isNative;
          if (isNativeApp) {
             const { App } = await import('@capacitor/app');
-            await App.openUrl({ url: intentUrl });
+            await App.openUrl({ url: intentUrl }).catch(err => {
+              console.error("App.openUrl error:", err);
+              // Fallback
+              window.open(intentUrl, '_system');
+            });
          } else {
             window.location.href = intentUrl;
          }
