@@ -38,6 +38,14 @@ jobs:
           npm install @capacitor/cli @capacitor/core @capacitor/android
           rm -rf android/app/src/main/res/mipmap-*
           npm install @capacitor/assets --save-dev
+          
+      - name: Repair Assets
+        run: |
+          npm install sharp@0.32.6
+          node -e "const sharp = require('sharp'); const fs = require('fs'); async function repair(file) { if (fs.existsSync(file)) { try { const buffer = fs.readFileSync(file); await sharp(buffer).png().toFile(file + '.fixed.png'); fs.renameSync(file + '.fixed.png', file); console.log('Fixed ' + file); } catch(e) { console.log('Failed ' + file); const w = file.includes('splash') ? 2732 : 1024; await sharp({ create: { width: w, height: file.includes('splash') ? 2732 : 1024, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } } }).png().toFile(file); } } } async function run() { await repair('assets/icon.png'); await repair('assets/splash.png'); await repair('assets/icon-foreground.png'); await repair('assets/icon-background.png'); } run();"
+
+      - name: Generate Android Icons
+        run: |
           npx @capacitor/assets generate --android
           if [ ! -d "android/app/src/main/res/mipmap-mdpi" ]; then
             echo "Error: Icons were not generated. Check assets folder."
