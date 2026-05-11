@@ -36,9 +36,6 @@ jobs:
       - name: Fix and Sync Android Project
         run: |
           npm install @capacitor/cli @capacitor/core @capacitor/android
-          npm install @capacitor/assets --save-dev
-          rm -rf android/app/src/main/res/mipmap-*
-          npx @capacitor/assets generate --android
           npx cap sync android
 
       - name: Set executable permissions and fix Gradle wrapper

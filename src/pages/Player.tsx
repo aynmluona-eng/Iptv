@@ -112,7 +112,25 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
       setLoading(true);
       setError('');
 
-      if (Hls.isSupported() && ext === 'm3u8') {
+      let isNativeApp = false;
+      try {
+        isNativeApp = !!(window as any).Capacitor?.isNative;
+      } catch (e) {}
+
+      if (isNativeApp && ext === 'm3u8') {
+        // Force Native HLS playback on Capacitor (Android/iOS)
+        // Bypasses CORS issues that hls.js would encounter and uses the OS native player
+        video.src = streamUrl;
+        video.addEventListener('loadedmetadata', () => { 
+          setLoading(false); 
+          video.play().catch(e => console.error("Play failed", e)); 
+        });
+        video.addEventListener('error', (e) => {
+          console.error("Native HLS Error:", video.error);
+          toast.error('تعذر تشغيل البث عبر المشغل المدمج.');
+          setLoading(false);
+        });
+      } else if (Hls.isSupported() && ext === 'm3u8') {
         setHlsSupported(true);
         hls = new Hls({
           maxBufferLength: 120, // Target 120 seconds of buffer
@@ -165,6 +183,18 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
                 break;
             }
           }
+        });
+      } else if (isNativeApp && ext === 'ts') {
+        // Native TS playback on Capacitor
+        video.src = streamUrl;
+        video.addEventListener('loadedmetadata', () => { 
+          setLoading(false); 
+          video.play().catch(e => console.error("Play failed", e)); 
+        });
+        video.addEventListener('error', (e) => {
+          console.error("Native TS Error:", video.error);
+          toast.error('تعذر تشغيل البث المباشر. يرجى تجربة قارئ خارجي.');
+          setLoading(false);
         });
       } else if (mpegts.getFeatureList().mseLivePlayback && ext === 'ts') {
          flvPlayer = mpegts.createPlayer({
