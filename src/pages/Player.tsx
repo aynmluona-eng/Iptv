@@ -150,11 +150,18 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
                 hls?.recoverMediaError();
                 break;
               default:
-                if (hls) hls.destroy();
-                const hlsErr = 'تعذر تشغيل الفيديو. يرجى التأكد من توفر القناة أو المحتوى.';
-                setError(hlsErr);
-                toast.error(hlsErr);
-                setLoading(false);
+                if (hls) {
+                   hls.destroy();
+                   setHlsInstance(null);
+                }
+                console.log('Falling back to native video player due to hls.js fatal error');
+                video.src = streamUrl;
+                video.play().catch(e => {
+                  const hlsErr = 'تعذر تشغيل الفيديو القناة.';
+                  setError(hlsErr);
+                  toast.error(hlsErr);
+                  setLoading(false);
+                });
                 break;
             }
           }

@@ -45,7 +45,12 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
   let isPackaged = false;
   
   if (typeof window !== 'undefined') {
+      try {
+        isNative = Capacitor.isNativePlatform() || !!(window as any).Capacitor?.isNative;
+      } catch (e) {}
+
       if (
+        isNative ||
         window.location.protocol === 'file:' || 
         window.location.protocol === 'tauri:' || 
         window.location.protocol === 'app:' || 
@@ -54,9 +59,6 @@ export const fetchXtreamApi = async (creds: XtreamCredentials, action?: string, 
       ) {
         isPackaged = true;
       }
-      try {
-        isNative = Capacitor.isNativePlatform() || !!(window as any).Capacitor?.isNative;
-      } catch (e) {}
   }
 
   let data: any = null;
@@ -179,13 +181,21 @@ export const getOriginalStreamUrl = (creds: XtreamCredentials, id: string | numb
 export const getStreamUrl = (creds: XtreamCredentials, id: string | number, type: 'live' | 'movie' | 'series' = 'live', ext: string = 'm3u8') => {
   const originalUrl = getOriginalStreamUrl(creds, id, type, ext);
   
+  let isNative = false;
+  if (typeof window !== 'undefined') {
+      try {
+        isNative = Capacitor.isNativePlatform() || !!(window as any).Capacitor?.isNative;
+      } catch (e) {}
+  }
+  
   // If running in a packaged desktop/mobile app context where there's no custom backend proxy running
   if (typeof window !== 'undefined' && (
+      isNative ||
       window.location.protocol === 'file:' || 
       window.location.protocol === 'tauri:' || 
       window.location.protocol === 'app:' || 
       window.location.protocol === 'capacitor:' || 
-      window.location.hostname === 'localhost' && window.location.port !== '3000' && window.location.port !== '')
+      (window.location.hostname === 'localhost' && window.location.port !== '3000' && window.location.port !== ''))
   ) {
      return originalUrl;
   }
