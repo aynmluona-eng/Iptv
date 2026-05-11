@@ -38,7 +38,11 @@ jobs:
           npm install @capacitor/cli @capacitor/core @capacitor/android
           rm -rf android/app/src/main/res/mipmap-*
           npm install @capacitor/assets --save-dev
-          npx capacitor-assets generate --android
+          npx @capacitor/assets generate --android
+          if [ ! -d "android/app/src/main/res/mipmap-mdpi" ]; then
+            echo "Error: Icons were not generated. Check assets folder."
+            exit 1
+          fi
           npx cap sync android
 
       - name: Set executable permissions and fix Gradle wrapper
