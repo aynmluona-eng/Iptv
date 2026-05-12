@@ -42,7 +42,7 @@ app.all("/api/stream", async (req, res) => {
       delete reqHeaders['connection'];
       delete reqHeaders['origin'];
       delete reqHeaders['referer'];
-      reqHeaders['User-Agent'] = 'IPTVSmartersPro'; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+      reqHeaders['User-Agent'] = 'IPTVSmartersPro';
 
       const options = {
           method: req.method,
@@ -110,7 +110,7 @@ app.all("/api/stream", async (req, res) => {
       method: "GET",
       url: targetUrl,
       headers: {
-        "User-Agent": "IPTVSmartersPro", like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent": "IPTVSmartersPro",
         "Referer": new URL(targetUrl).origin,
         "Origin": new URL(targetUrl).origin,
       },
@@ -196,7 +196,7 @@ app.all("/api/proxy", async (req, res) => {
       params: req.method === "GET" ? params : undefined,
       data: req.method === "POST" ? params : undefined,
       headers: {
-        "User-Agent": "IPTVSmartersPro", like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent": "IPTVSmartersPro",
         "Accept": "*/*",
       },
       responseType: "stream", 
