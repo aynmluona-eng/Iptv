@@ -18,6 +18,8 @@ import LiveDetails from './pages/LiveDetails';
 import Player from './pages/Player';
 import Favorites from './pages/Favorites';
 import Settings from './pages/Settings';
+import Sports from './pages/Sports';
+import MatchDetails from './pages/MatchDetails';
 
 export default function App() {
   const [credentials, setCredentials] = useState<XtreamCredentials | null>(() => {
@@ -65,6 +67,8 @@ export default function App() {
         <Route path="/series" element={<Series credentials={credentials!} />} />
         <Route path="/movie/:id" element={<MovieDetails credentials={credentials!} />} />
         <Route path="/series/:id" element={<SeriesDetails credentials={credentials!} />} />
+        <Route path="/sports" element={<Sports onLogout={handleLogout} />} />
+        <Route path="/sports/match/:id" element={<MatchDetails credentials={credentials!} onLogout={handleLogout} />} />
         <Route path="/favorites" element={<Favorites credentials={credentials!} />} />
         <Route path="/settings" element={<Settings credentials={credentials!} onLogout={handleLogout} />} />
         <Route path="/player/:type/:id" element={<Player credentials={credentials!} />} />

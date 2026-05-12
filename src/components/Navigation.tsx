@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Tv, Film, LogOut, MonitorPlay, Heart, Settings as SettingsIcon } from 'lucide-react';
+import { Home, Tv, Film, LogOut, MonitorPlay, Heart, Settings as SettingsIcon, Activity } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
 
@@ -13,6 +13,7 @@ export default function Navigation({ onLogout }: NavigationProps) {
 
   const links = [
     { to: '/', icon: <Home size={22} />, label: 'الرئيسية' },
+    { to: '/sports', icon: <Activity size={22} />, label: 'الرياضة' },
     { to: '/series', icon: <MonitorPlay size={22} />, label: 'المسلسلات' },
     { to: '/movies', icon: <Film size={22} />, label: 'الأفلام' },
     { to: '/live', icon: <Tv size={22} />, label: 'القنوات' },
