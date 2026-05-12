@@ -28,7 +28,7 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
         setLoading(true);
         
         // Fetch channel info
-        const streams = await fetchXtreamApi(credentials, 'get_live_streams').catch(() => []);
+        const streams = await fetchXtreamApi(credentials, 'get_simple_data_table').catch(() => null).then(res => res && res.length > 0 ? res : fetchXtreamApi(credentials, 'get_live_streams').catch(() => []));
         if (Array.isArray(streams)) {
           const channel = streams.find((s: any) => String(s.stream_id) === String(id));
           if (channel) {
@@ -68,12 +68,32 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
     }
   };
 
-  const currentProgram = epgData.find((p: any) => {
+  
+  const decodeEpg = (text: string) => {
+    if (!text) return '';
+    try { 
+      return atob(text).replace(/\+/g, ' ');
+    } catch (e) { 
+        try { return decodeURIComponent(escape(atob(text))).replace(/\+/g, ' '); } catch(e2) { return text; }
+    }
+  };
+
+  let currentProgram = epgData.find((p: any) => {
     const now = new Date();
     const start = new Date(p.start_timestamp * 1000 || p.start);
     const end = new Date(p.stop_timestamp * 1000 || p.end);
     return now >= start && now <= end;
   });
+
+  
+  if (!currentProgram && channelInfo && channelInfo.epg_title) {
+     currentProgram = {
+       title: channelInfo.epg_title,
+       description: '',
+       start_timestamp: Math.floor(Date.now() / 1000) - 1800,
+       stop_timestamp: Math.floor(Date.now() / 1000) + 1800
+     };
+  }
 
   return (
     <div className="flex min-h-[100dvh] bg-dark text-white">
@@ -126,10 +146,10 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
                   <p className="text-brand font-medium mb-1 flex items-center justify-center md:justify-start gap-2">
                     <Clock size={16} /> يُعرض الآن
                   </p>
-                  <p className="text-xl md:text-2xl font-bold">{atob(currentProgram.title).replace(/\+/g, ' ')}</p>
+                  <p className="text-xl md:text-2xl font-bold">{decodeEpg(currentProgram.title)}</p>
                   {currentProgram.description && (
                     <p className="text-sm text-gray-400 mt-2 max-w-2xl mx-auto md:mx-0">
-                       {atob(currentProgram.description).replace(/\+/g, ' ')}
+                       {decodeEpg(currentProgram.description)}
                     </p>
                   )}
                 </div>
@@ -183,8 +203,8 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
                   const isCurrent = now >= start && now <= end;
                   const isPast = now > end;
                   const isUpcoming = now < start;
-                  const title = program.title ? atob(program.title).replace(/\+/g, ' ') : 'برنامج مجهول';
-                  const desc = program.description ? atob(program.description).replace(/\+/g, ' ') : '';
+                  const title = program.title ? decodeEpg(program.title) : 'برنامج مجهول';
+                  const desc = program.description ? decodeEpg(program.description) : '';
                   const durationMs = end.getTime() - start.getTime();
                   const durationMins = Math.round(durationMs / 60000);
                   

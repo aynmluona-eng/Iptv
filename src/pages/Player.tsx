@@ -172,14 +172,24 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
                    hls.destroy();
                    setHlsInstance(null);
                 }
-                console.log('Falling back to native video player due to hls.js fatal error');
-                video.src = streamUrl;
-                video.play().catch(e => {
-                  const hlsErr = 'تعذر تشغيل الفيديو القناة.';
-                  setError(hlsErr);
-                  toast.error(hlsErr);
-                  setLoading(false);
-                });
+                console.log('Falling back to TS stream due to hls.js fatal error');
+                // Auto switch to TS mode via mpegts if HLS fails 
+                if (type === 'live') {
+                  const newStreamUrl = getStreamUrl(credentials, id, type, 'ts');
+                  if (mpegts.getFeatureList().mseLivePlayback) {
+                     const fPlayer = mpegts.createPlayer({ type: 'mse', isLive: true, url: newStreamUrl });
+                     fPlayer.attachMediaElement(video);
+                     fPlayer.load();
+                     fPlayer.on(mpegts.Events.MEDIA_INFO, () => { setLoading(false); video.play().catch(()=>{}); });
+                     setMpegtsInstance(fPlayer);
+                  } else {
+                     video.src = newStreamUrl;
+                     video.play().catch(()=>{});
+                  }
+                } else {
+                  video.src = streamUrl;
+                  video.play().catch(e => { setError('تعذر التشغيل'); setLoading(false); });
+                }
                 break;
             }
           }

@@ -123,15 +123,17 @@ export default function Live({
     }
   };
 
+  
   const filteredChannels = useMemo(() => {
-    return channels.filter((c) => {
-      const matchSearch = c.name?.toLowerCase().includes(search.toLowerCase());
-      const matchCategory = activeCategory
-        ? c.category_id === activeCategory
-        : true;
-      return matchSearch && matchCategory;
+    return channels.filter(c => {
+      const name = c.name.toLowerCase();
+      const stSearch = search.toLowerCase();
+      const matchSearch = name.includes(stSearch) || (c.num && c.num.toString().includes(stSearch));
+      const matchCat = activeCategory === null || c.category_id === activeCategory;
+      return matchSearch && matchCat;
     });
   }, [channels, search, activeCategory]);
+
 
   const favoriteChannelsList = useMemo(() => {
     return channels.filter((c) => favorites.has(String(c.stream_id)));
