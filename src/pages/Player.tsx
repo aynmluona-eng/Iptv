@@ -112,25 +112,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
       setLoading(true);
       setError('');
 
-      let isNativeApp = false;
-      try {
-        isNativeApp = !!(window as any).Capacitor?.isNative;
-      } catch (e) {}
-
-      if (isNativeApp && ext === 'm3u8') {
-        // Force Native HLS playback on Capacitor (Android/iOS)
-        // Bypasses CORS issues that hls.js would encounter and uses the OS native player
-        video.src = streamUrl;
-        video.addEventListener('loadedmetadata', () => { 
-          setLoading(false); 
-          video.play().catch(e => console.error("Play failed", e)); 
-        });
-        video.addEventListener('error', (e) => {
-          console.error("Native HLS Error:", video.error);
-          toast.error('تعذر تشغيل البث عبر المشغل المدمج.');
-          setLoading(false);
-        });
-      } else if (Hls.isSupported() && ext === 'm3u8') {
+      if (Hls.isSupported() && ext === 'm3u8') {
         setHlsSupported(true);
         hls = new Hls({
           maxBufferLength: 120, // Target 120 seconds of buffer
@@ -143,6 +125,11 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
           manifestLoadingMaxRetry: 10,
           levelLoadingMaxRetry: 10,
           abrEwmaDefaultEstimate: 5000000, // Default 5Mbps estimate to start high quality fast
+          xhrSetup: function(xhr, url) {
+            try {
+              xhr.setRequestHeader('User-Agent', 'IPTVSmartersPro');
+            } catch (e) {}
+          }
         });
         hls.loadSource(streamUrl);
         hls.attachMedia(video);
@@ -184,18 +171,6 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
             }
           }
         });
-      } else if (isNativeApp && ext === 'ts') {
-        // Native TS playback on Capacitor
-        video.src = streamUrl;
-        video.addEventListener('loadedmetadata', () => { 
-          setLoading(false); 
-          video.play().catch(e => console.error("Play failed", e)); 
-        });
-        video.addEventListener('error', (e) => {
-          console.error("Native TS Error:", video.error);
-          toast.error('تعذر تشغيل البث المباشر. يرجى تجربة قارئ خارجي.');
-          setLoading(false);
-        });
       } else if (mpegts.getFeatureList().mseLivePlayback && ext === 'ts') {
          flvPlayer = mpegts.createPlayer({
              type: 'mse',
@@ -208,6 +183,9 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
             autoCleanupSourceBuffer: true,
             autoCleanupMaxBackwardDuration: 5 * 60,
             autoCleanupMinBackwardDuration: 2 * 60,
+            headers: {
+              'User-Agent': 'IPTVSmartersPro'
+            }
          });
          
          flvPlayer.attachMediaElement(video);
