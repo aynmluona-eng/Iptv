@@ -146,10 +146,10 @@ export default function Live({
   }, [categories, channelsByCategory]);
 
   return (
-    <div className="flex min-h-[100dvh] bg-dark text-white">
+    <div className="flex min-h-[100vh] bg-dark text-white">
       <Navigation />
 
-      <main className="flex-1 md:pr-[260px] px-4 md:px-8 pt-8 md:pt-12 pb-24 md:pb-12 flex flex-col h-[100dvh] overflow-hidden">
+      <main className="flex-1 md:pr-[260px] px-4 md:px-8 pt-8 md:pt-12 pb-32 md:pb-12 flex flex-col h-[100vh] overflow-hidden">
         {/* Mobile Header */}
         <header className="mb-6 shrink-0 md:flex md:justify-between md:items-center">
           <div className="flex justify-between items-center mb-4 md:mb-0">

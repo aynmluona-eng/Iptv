@@ -56,7 +56,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-dark text-gray-100 flex flex-col font-arabic">
+    <div className="min-h-[100vh] bg-dark text-gray-100 flex flex-col font-arabic">
       <Toaster position="top-center" theme="dark" richColors />
       <Routes>
         <Route path="/login" element={<Login onLogin={handleLogin} />} />

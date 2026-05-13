@@ -96,10 +96,10 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
   }
 
   return (
-    <div className="flex min-h-[100dvh] bg-dark text-white">
+    <div className="flex min-h-[100vh] bg-dark text-white">
       <Navigation />
       
-      <main className="flex-1 md:pr-[260px] relative h-[100dvh] overflow-y-auto styled-scrollbar pb-20">
+      <main className="flex-1 md:pr-[260px] relative h-[100vh] overflow-y-auto styled-scrollbar pb-20">
         <div className="relative min-h-[50vh] flex flex-col justify-end pt-32 pb-16 px-6 md:px-12 bg-panel">
           <div className="absolute inset-0 z-0 overflow-hidden">
             {channelInfo?.stream_icon && (

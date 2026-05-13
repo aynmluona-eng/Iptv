@@ -54,10 +54,10 @@ export default function Favorites({ credentials }: { credentials: XtreamCredenti
   ] as const;
 
   return (
-    <div className="flex min-h-[100dvh] bg-dark text-white">
+    <div className="flex min-h-[100vh] bg-dark text-white">
       <Navigation />
       
-      <main className="flex-1 md:pr-[260px] px-4 md:px-8 pt-8 md:pt-12 pb-24 md:pb-12 flex flex-col h-[100dvh] overflow-hidden">
+      <main className="flex-1 md:pr-[260px] px-4 md:px-8 pt-8 md:pt-12 pb-32 md:pb-12 flex flex-col h-[100vh] overflow-hidden">
         <header className="mb-6 shrink-0 flex items-center gap-3">
           <button onClick={() => navigate('/')} className="w-10 h-10 bg-white/5 hover:bg-brand hover:text-black rounded-sm flex items-center justify-center transition-colors">
             <ArrowLeft size={24} />

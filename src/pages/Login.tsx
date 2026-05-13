@@ -107,7 +107,7 @@ export default function Login({ onLogin }: LoginProps) {
   );
 
   return (
-    <div className="flex items-center justify-center min-h-[100dvh] relative overflow-hidden bg-dark">
+    <div className="flex items-center justify-center min-h-[100vh] relative overflow-hidden bg-dark">
       {/* Background Decor - simple mesh/gradient replaced with solid pattern or photo */}
       <div className="absolute inset-0 bg-black">
          <img src="https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&q=80&w=1920" className="w-full h-full object-cover opacity-30 mix-blend-luminosity" alt="Background" />

@@ -103,7 +103,7 @@ export default function MovieDetails({
 
   if (loading) {
     return (
-      <div className="flex min-h-[100dvh] bg-dark text-white">
+      <div className="flex min-h-[100vh] bg-dark text-white">
         <Navigation />
         <main className="flex-1 md:pr-[260px] flex items-center justify-center">
           <div className="w-12 h-12 border-4 border-brand border-t-brand rounded-full animate-spin"></div>
@@ -114,7 +114,7 @@ export default function MovieDetails({
 
   if (!movieInfo) {
     return (
-      <div className="flex min-h-[100dvh] bg-dark text-white">
+      <div className="flex min-h-[100vh] bg-dark text-white">
         <Navigation />
         <main className="flex-1 md:pr-[260px] flex flex-col items-center justify-center text-gray-500">
           <p className="mb-4">عذراً، لا يمكن العثور على الفيلم</p>
@@ -137,10 +137,10 @@ export default function MovieDetails({
     : [];
 
   return (
-    <div className="flex min-h-[100dvh] bg-dark text-white">
+    <div className="flex min-h-[100vh] bg-dark text-white">
       <Navigation />
 
-      <main className="flex-1 md:pr-[260px] relative overflow-y-auto h-[100dvh] styled-scrollbar pb-20">
+      <main className="flex-1 md:pr-[260px] relative overflow-y-auto h-[100vh] styled-scrollbar pb-20">
         {/* Hero Section */}
         <div className="relative min-h-[70vh] flex flex-col justify-end pt-32 pb-16 px-6 md:px-12">
           {/* Backdrop */}

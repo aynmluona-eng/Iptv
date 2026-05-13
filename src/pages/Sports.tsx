@@ -135,10 +135,10 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
   const datesList = [-1, 0, 1, 2, 3, 4];
 
   return (
-    <div className="flex min-h-[100dvh] bg-black text-white selection:bg-brand/30 font-sans">
+    <div className="flex min-h-[100vh] bg-black text-white selection:bg-brand/30 font-sans">
       <Navigation onLogout={onLogout} />
       
-      <main className="flex-1 md:pr-[260px] pb-28 md:pb-12 relative bg-[#0A0A0A]">
+      <main className="flex-1 md:pr-[260px] pb-32 md:pb-12 relative bg-[#0A0A0A]">
         {/* Date Selector Header */}
         <div className="sticky top-0 z-40 bg-[#0A0A0A]/95 backdrop-blur-md border-b border-white/5">
            <div className="flex items-center justify-center overflow-x-auto styled-scrollbar hide-scrollbar px-4 w-full">
@@ -249,22 +249,22 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
                                               <Tv size={16} className="text-gray-400" />
                                             </div>
 
-                                            <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-4 w-full">
+                                            <div className="flex-1 flex items-center justify-center w-full">
                                               {/* Home Team (Right Side in RTL) */}
-                                              <div className="flex items-center justify-start gap-2 md:gap-3 w-full">
-                                                 <img src={teams.home.logo} className="w-6 h-6 md:w-8 md:h-8 object-contain shrink-0" />
-                                                 <span className="font-bold text-[13px] md:text-base line-clamp-1">{teams.home.name}</span>
+                                              <div className="flex flex-1 items-center justify-end gap-2 md:gap-3 min-w-0">
+                                                 <span className="font-bold text-xs md:text-sm lg:text-base truncate text-right" dir="auto">{teams.home.name}</span>
+                                                 <img src={teams.home.logo} className="w-6 h-6 md:w-8 md:h-8 object-contain shrink-0" alt="" />
                                               </div>
 
                                               {/* Score / Time (Center) */}
-                                              <div className="w-[80px] md:w-[120px] flex flex-col items-center justify-center shrink-0">
+                                              <div className="flex flex-col items-center justify-center shrink-0 w-[80px] md:w-[100px] mx-1 md:mx-2">
                                                  {(match.status.short === 'NS' || match.status.short === 'PST') ? (
-                                                    <div className="font-bold text-gray-400 text-sm md:text-base">
+                                                    <div className="font-bold text-gray-400 text-xs md:text-sm bg-white/5 py-1 px-3 rounded-full">
                                                        {getStatusText({ ...match.status, date: match.date })}
                                                     </div>
                                                  ) : (
                                                     <div className="flex flex-col items-center">
-                                                       <div className="font-black text-lg md:text-xl text-white tracking-widest bg-black/40 px-2 md:px-3 py-1 rounded">
+                                                       <div className="font-black text-sm md:text-xl text-white tracking-widest bg-black/60 px-3 py-1 rounded">
                                                           {goals.home ?? 0} <span className="px-1 text-gray-600">-</span> {goals.away ?? 0}
                                                        </div>
                                                        {isLive && <div className="text-[10px] md:text-[11px] text-brand font-bold mt-1 animate-pulse">{match.status.elapsed}' مباشر</div>}
@@ -273,9 +273,9 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
                                               </div>
 
                                               {/* Away Team (Left Side in RTL) */}
-                                              <div className="flex items-center justify-end gap-2 md:gap-3 w-full">
-                                                 <span className="font-bold text-[13px] md:text-base line-clamp-1 text-left">{teams.away.name}</span>
-                                                 <img src={teams.away.logo} className="w-6 h-6 md:w-8 md:h-8 object-contain shrink-0" />
+                                              <div className="flex flex-1 items-center justify-start gap-2 md:gap-3 min-w-0">
+                                                 <img src={teams.away.logo} className="w-6 h-6 md:w-8 md:h-8 object-contain shrink-0" alt="" />
+                                                 <span className="font-bold text-xs md:text-sm lg:text-base truncate text-left" dir="auto">{teams.away.name}</span>
                                               </div>
                                             </div>
                                          </div>

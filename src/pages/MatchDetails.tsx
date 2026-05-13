@@ -42,7 +42,7 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[100dvh] bg-[#0A0A0A]">
+      <div className="flex-1 flex items-center justify-center min-h-[100vh] bg-[#0A0A0A]">
          <div className="w-10 h-10 border-4 border-white/10 border-t-brand rounded-full animate-spin"></div>
       </div>
     );
@@ -50,7 +50,7 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
 
   if (error || !details) {
     return (
-      <div className="flex min-h-[100dvh] bg-[#0A0A0A] text-white">
+      <div className="flex min-h-[100vh] bg-[#0A0A0A] text-white">
         <Navigation onLogout={onLogout} />
         <main className="flex-1 flex flex-col items-center justify-center md:pr-[260px] px-6">
           <div className="text-gray-400 mb-4">{error || 'تفاصيل غير متوفرة.'}</div>
@@ -74,10 +74,10 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
   ];
 
   return (
-    <div className="flex min-h-[100dvh] bg-[#0A0A0A] text-white selection:bg-brand/30 font-sans">
+    <div className="flex min-h-[100vh] bg-[#0A0A0A] text-white selection:bg-brand/30 font-sans">
       <Navigation onLogout={onLogout} />
       
-      <main className="flex-1 md:pr-[260px] relative overflow-hidden bg-[#0A0A0A] flex flex-col h-[100dvh]">
+      <main className="flex-1 md:pr-[260px] relative overflow-hidden bg-[#0A0A0A] flex flex-col h-[100vh]">
         
         {/* Top Header */}
         <div className="px-4 py-3 flex items-center justify-between border-b border-white/5 bg-[#121212]">

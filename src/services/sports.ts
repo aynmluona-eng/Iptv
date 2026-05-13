@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // To use this, users need an API key from https://www.api-football.com/
-const API_KEY = import.meta.env.VITE_SPORTS_API_KEY;
+const API_KEY = (import.meta as any).env?.VITE_SPORTS_API_KEY;
 const API_HOST = 'v3.football.api-sports.io';
 const BASE_URL = `https://${API_HOST}`;
 
@@ -35,14 +35,11 @@ export const getTodaysFixtures = async (dateStr: string) => {
 export const getFixtureDetails = async (fixtureId: number) => {
   if (!hasSportsApiConfigured()) throw new Error("API_KEY_MISSING");
 
-  const [fixtureDetails, h2hDetails] = await Promise.all([
+  const [fixtureDetails] = await Promise.all([
      axios.get(`${BASE_URL}/fixtures`, {
         headers: getHeaders(),
         params: { id: fixtureId }
-     }),
-     // H2H needs teams. We will fetch it dynamically but for simplicity let's stick to fixture details 
-     // which often includes events, lineups, statistics if we use the endpoints
-     // Wait, the /fixtures endpoint by ID returns events, lineups, and statistics!
+     })
   ]);
 
   return fixtureDetails.data?.response?.[0];

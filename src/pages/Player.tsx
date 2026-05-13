@@ -376,7 +376,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
          const isNativeApp = !!(window as any).Capacitor?.isNative;
          if (isNativeApp) {
             const { App } = await import('@capacitor/app');
-            await App.openUrl({ url: intentUrl }).catch(err => {
+            await (App as any).openUrl({ url: intentUrl }).catch((err: any) => {
               console.error("App.openUrl error:", err);
               // Fallback
               window.open(intentUrl, '_system');

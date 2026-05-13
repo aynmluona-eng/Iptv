@@ -65,10 +65,10 @@ export default function Settings({ credentials, onLogout }: { credentials: Xtrea
   ];
 
   return (
-    <div className="flex min-h-[100dvh] bg-dark text-white">
+    <div className="flex min-h-[100vh] bg-dark text-white">
       <Navigation />
       
-      <main className="flex-1 md:pr-[260px] pb-24 md:pb-12 h-[100dvh] overflow-y-auto styled-scrollbar">
+      <main className="flex-1 md:pr-[260px] pb-32 md:pb-12 h-[100vh] overflow-y-auto styled-scrollbar">
         <div className="px-6 md:px-12 pt-8 md:pt-12 max-w-5xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-4 mb-8">

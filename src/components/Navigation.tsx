@@ -77,7 +77,7 @@ export default function Navigation({ onLogout }: NavigationProps) {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-dark/95 backdrop-blur-xl border-t border-white/10 z-50 px-2 pb-safe pt-2">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-dark/95 backdrop-blur-xl border-t border-white/10 z-50 px-2 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2">
         <ul className="flex justify-around items-center h-16">
           {links.map((link) => {
             const isActive = location.pathname === link.to;

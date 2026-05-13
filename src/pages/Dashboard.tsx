@@ -5,6 +5,7 @@ import Navigation from '../components/Navigation';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
+import { getTodaysFixtures, hasSportsApiConfigured } from '../services/sports';
 
 interface DashboardProps {
   credentials: XtreamCredentials;
@@ -19,6 +20,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   const [heroItem, setHeroItem] = useState<any>(null);
   const [recentItems, setRecentItems] = useState<any[]>([]);
   const [liveHighlights, setLiveHighlights] = useState<any[]>([]);
+  const [sportsEvents, setSportsEvents] = useState<any[]>([]);
   
   const [error, setError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
@@ -73,11 +75,13 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
           
           const validHeroItems = allContent.filter(item => item.img && !item.img.includes('default') && !item.img.includes('empty'));
           if (validHeroItems.length > 0) {
-              setHeroItem(validHeroItems[0]);
-              setRecentItems(validHeroItems.slice(1, 10));
+              const shuffledHero = [...validHeroItems].sort(() => 0.5 - Math.random());
+              setHeroItem(shuffledHero[0]);
+              setRecentItems(shuffledHero.slice(1, 10));
           } else if (allContent.length > 0) {
-              setHeroItem(allContent[0]);
-              setRecentItems(allContent.slice(1, 10));
+              const shuffledAll = [...allContent].sort(() => 0.5 - Math.random());
+              setHeroItem(shuffledAll[0]);
+              setRecentItems(shuffledAll.slice(1, 10));
           }
 
           // Pick some live highlights (e.g. Sports channels)
@@ -97,6 +101,31 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                     type: 'live'
                  }))
               );
+          }
+          
+          if (hasSportsApiConfigured()) {
+            try {
+              const today = new Date().toISOString().split('T')[0];
+              const fixturesResponse = await getTodaysFixtures(today);
+              if (Array.isArray(fixturesResponse)) {
+                // top leagues IDs usually: 39 (PL), 140 (La Liga), 135 (Serie A), 61 (Ligue 1), 78 (Bundesliga), 2 (UCL), 307 (Saudi Pro League)
+                const topLeagues = [39, 140, 135, 61, 78, 2, 307];
+                const topFixtures = fixturesResponse.filter(f => topLeagues.includes(f.league.id));
+                const targetFixtures = topFixtures.length > 0 ? topFixtures : fixturesResponse.slice(0, 10);
+                
+                setSportsEvents(
+                  targetFixtures.map(f => ({
+                    id: f.fixture.id,
+                    title: `${f.teams.home.name} ضد ${f.teams.away.name}`,
+                    subtitle: f.league.name + ' • ' + new Date(f.fixture.date).toLocaleTimeString('ar-SA', {hour: '2-digit', minute: '2-digit'}),
+                    img: f.teams.home.logo,
+                    type: 'match'
+                  }))
+                );
+              }
+            } catch (e) {
+              console.log("sports API failed on dashboard");
+            }
           }
 
         } else {
@@ -121,7 +150,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[100dvh] bg-dark">
+      <div className="flex-1 flex items-center justify-center min-h-[100vh] bg-dark">
          <div className="w-12 h-12 border-4 border-white/20 border-t-brand rounded-full animate-spin"></div>
       </div>
     );
@@ -129,7 +158,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
 
   if (error) {
     return (
-      <div className="flex min-h-[100dvh] bg-dark text-white">
+      <div className="flex min-h-[100vh] bg-dark text-white">
         <Navigation onLogout={onLogout} />
         <main className="flex-1 flex items-center justify-center md:pr-[260px] px-6">
           <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-6 rounded-sm max-w-lg text-center backdrop-blur-sm">
@@ -171,10 +200,11 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
             onClick={() => navigate(
                item.type === 'movie' ? `/movie/${item.id}` : 
                item.type === 'series' ? `/series/${item.id}` : 
+               item.type === 'match' ? `/sports/match/${item.id}` :
                `/live/${item.id}`
             )}
           >
-            <div className={clsx("relative bg-panel border border-white/5 group-hover:border-brand/40 transition-all duration-300 rounded-sm overflow-hidden mb-3", isLive ? "aspect-video" : "aspect-[2/3]")}>
+            <div className={clsx("relative bg-panel border border-white/5 group-hover:border-brand/40 transition-all duration-300 rounded-sm overflow-hidden mb-3", (isLive || item.type === 'match') ? "aspect-video" : "aspect-[2/3]")}>
               <img 
                 src={item.img || "https://images.unsplash.com/photo-1541443131876-44b03de101c5?auto=format&fit=crop&q=80&w=800"} 
                 onError={(e) => {
@@ -182,7 +212,7 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
                   target.src = "https://images.unsplash.com/photo-1541443131876-44b03de101c5?auto=format&fit=crop&q=80&w=800";
                 }}
                 loading="lazy"
-                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" 
+                className={clsx("w-full h-full opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700", item.type === 'match' ? 'object-contain bg-black/50 p-4' : 'object-cover')} 
                 alt={item.title} 
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity"></div>
@@ -212,10 +242,10 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
   );
 
   return (
-    <div className="flex min-h-[100dvh] bg-dark text-white selection:bg-brand/30 font-sans">
+    <div className="flex min-h-[100vh] bg-dark text-white selection:bg-brand/30 font-sans">
       <Navigation onLogout={onLogout} />
       
-      <main className="flex-1 md:pr-[260px] pb-24 md:pb-12 relative overflow-hidden bg-dark">
+      <main className="flex-1 md:pr-[260px] pb-32 md:pb-12 relative overflow-hidden bg-dark">
         {/* Dynamic Hero Banner */}
         <div className="relative w-full min-h-[65vh] md:min-h-[550px] flex flex-col justify-end pb-12 md:pb-16 pt-32 mb-12 border-b border-white/5">
           <div className="absolute inset-0 bg-black overflow-hidden">
@@ -321,7 +351,11 @@ export default function Dashboard({ credentials, onLogout }: DashboardProps) {
             </div>
 
             {/* Dynamic Event Rows */}
-            <HorizontalList title="فعاليات رياضية ومباشرة" items={liveHighlights} icon={Activity} isLive={true} />
+            {sportsEvents.length > 0 && (
+               <HorizontalList title="مباريات اليوم (الفعاليات الحالية)" items={sportsEvents} icon={Activity} isLive={true} />
+            )}
+
+            <HorizontalList title="قنوات ومباشر" items={liveHighlights} icon={Tv} isLive={true} />
             
             <HorizontalList title="أحدث الإضافات" items={recentItems} icon={Sparkles} />
             
