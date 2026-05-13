@@ -54,16 +54,15 @@ jobs:
       - name: Generate Keystore
         id: build_keystore
         run: |
-          cd android/app
-          keytool -genkey -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass "android123" -keypass "android123" -dname "CN=React App, OU=App, O=App, L=City, ST=State, C=US"
+          keytool -genkey -v -keystore $GITHUB_WORKSPACE/android/release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass "android123" -keypass "android123" -dname "CN=React App, OU=App, O=App, L=City, ST=State, C=US"
 
       - name: Build Signed APK
         working-directory: ./android
-        run: ./gradlew assembleRelease --no-daemon --no-build-cache -Pandroid.injected.signing.store.file=release.keystore -Pandroid.injected.signing.store.password=android123 -Pandroid.injected.signing.key.alias=release -Pandroid.injected.signing.key.password=android123
+        run: ./gradlew assembleRelease --no-daemon --no-build-cache -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/release.keystore -Pandroid.injected.signing.store.password=android123 -Pandroid.injected.signing.key.alias=release -Pandroid.injected.signing.key.password=android123
 
       - name: Build Signed AAB
         working-directory: ./android
-        run: ./gradlew bundleRelease --no-daemon --no-build-cache -Pandroid.injected.signing.store.file=release.keystore -Pandroid.injected.signing.store.password=android123 -Pandroid.injected.signing.key.alias=release -Pandroid.injected.signing.key.password=android123
+        run: ./gradlew bundleRelease --no-daemon --no-build-cache -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/release.keystore -Pandroid.injected.signing.store.password=android123 -Pandroid.injected.signing.key.alias=release -Pandroid.injected.signing.key.password=android123
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
