@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import { getFixtureDetails } from '../services/sports';
-import { ChevronRight, ArrowLeft, Clock, MapPin, MonitorPlay, Activity, Zap, Play, Calendar, Tv, Cloud, Thermometer, Bell, Star, MoreVertical } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Clock, MapPin, MonitorPlay, Activity, Zap, Play, Calendar, Tv, Cloud, Thermometer, Bell, BellRing, Star, MoreVertical } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
+import { StreamButton } from '../components/StreamButton';
+import { StandingsWidget } from '../components/StandingsWidget';
+import { TopScorersWidget } from '../components/TopScorersWidget';
+import { toast } from 'sonner';
 
 export default function MatchDetails({ credentials, onLogout }: { credentials: any, onLogout: () => void }) {
   const { id } = useParams();
@@ -12,8 +16,9 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
   const [details, setDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isNotifying, setIsNotifying] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'preview' | 'events' | 'lineups' | 'h2h'>('preview');
+  const [activeTab, setActiveTab] = useState<'preview' | 'events' | 'lineups' | 'h2h' | 'players' | 'league'>('preview');
   const [h2hData, setH2hData] = useState<any[]>([]);
 
   useEffect(() => {
@@ -60,7 +65,7 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
     );
   }
 
-  const { fixture, league, teams, goals, score, events, lineups, statistics } = details;
+  const { fixture, league, teams, goals, score, events, lineups, statistics, players } = details;
 
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'LIVE'].includes(fixture?.status?.short);
   const isFinished = ['FT', 'AET', 'PEN'].includes(fixture?.status?.short);
@@ -74,10 +79,10 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
   ];
 
   return (
-    <div className="flex min-h-[100vh] bg-[#0A0A0A] text-white selection:bg-brand/30 font-sans">
+    <div className="flex min-h-[100vh] bg-[#0A0A0A] text-white selection:bg-brand/30 font-sans w-full overflow-x-hidden">
       <Navigation onLogout={onLogout} />
       
-      <main className="flex-1 md:pr-[260px] relative overflow-hidden bg-[#0A0A0A] flex flex-col h-[100vh]">
+      <main className="flex-1 md:pr-[260px] relative overflow-hidden bg-[#0A0A0A] flex flex-col h-[100vh] w-full max-w-[100vw]">
         
         {/* Top Header */}
         <div className="px-4 py-3 flex items-center justify-between border-b border-white/5 bg-[#121212]">
@@ -97,7 +102,18 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
           </div>
           <div className="flex items-center gap-4 text-gray-400 border-r border-white/10 pr-4">
              <Star size={20} className="hover:text-amber-400 transition-colors cursor-pointer" />
-             <Bell size={20} className="hover:text-white transition-colors cursor-pointer" />
+             <button 
+                onClick={() => {
+                   setIsNotifying(!isNotifying);
+                   if (!isNotifying) {
+                      toast.success('تم تفعيل الإشعارات', { description: 'سيصلك تنبيه عند بداية المباراة وتسجيل الأهداف' });
+                   } else {
+                      toast.error('تم إيقاف الإشعارات');
+                   }
+                }}
+             >
+                {isNotifying ? <BellRing size={20} className="text-brand" /> : <Bell size={20} className="hover:text-white transition-colors" />}
+             </button>
              <MoreVertical size={20} className="hover:text-white transition-colors cursor-pointer" />
           </div>
         </div>
@@ -149,7 +165,9 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
                    { id: 'preview', label: 'معاينة' },
                    { id: 'lineups', label: 'التشكيلة' },
                    { id: 'events', label: 'الأحداث' },
-                   { id: 'h2h', label: 'المواجهات' }
+                   { id: 'players', label: 'التقييم' },
+                   { id: 'h2h', label: 'المواجهات' },
+                   { id: 'league', label: 'البطولة' }
                 ].map(tab => (
                    <button 
                       key={tab.id}
@@ -230,23 +248,30 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
                      </div>
 
                      {/* Broadcasters */}
-                     <div className="bg-[#181818] rounded-xl border border-white/5 p-4">
-                        <h4 className="font-bold mb-4 text-sm text-gray-400 flex items-center gap-2">
-                           <Tv size={16} /> القنوات الناقلة
-                        </h4>
-                        <div className="flex flex-col gap-2">
-                           <button 
-                             onClick={() => navigate(`/live?search=bein`)} 
-                             className="w-full bg-[#202020] hover:bg-[#2A2A2A] border border-white/5 p-3 rounded-lg flex items-center justify-between transition-colors group"
-                           >
-                              <div className="flex items-center gap-3">
-                                 <div className="w-8 h-8 rounded bg-black/40 flex items-center justify-center text-brand">
-                                    <Tv size={16} />
+                     <div className="bg-[#181818] rounded-xl border border-white/5 p-4 space-y-4">
+                        <StreamButton 
+                          credentials={credentials} 
+                          matchName={`${teams?.home?.name} ضد ${teams?.away?.name}`} 
+                          homeTeam={teams?.home?.name || ''} 
+                          awayTeam={teams?.away?.name || ''} 
+                        />
+                        <div className="pt-2 border-t border-white/5">
+                           <h4 className="font-bold mb-4 text-sm text-gray-400 flex items-center gap-2">
+                              <Tv size={16} /> القنوات الناقلة الشبكات
+                           </h4>
+                           <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => navigate(`/live?search=bein`)} 
+                                className="w-full bg-[#202020] hover:bg-[#2A2A2A] border border-white/5 p-3 rounded-lg flex items-center justify-between transition-colors group"
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded bg-black/40 flex items-center justify-center text-brand">
+                                       <Tv size={16} />
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-200 group-hover:text-white">قنوات beIN Sports</span>
                                  </div>
-                                 <span className="text-sm font-bold text-gray-200 group-hover:text-white">قنوات beIN Sports</span>
-                              </div>
-                              <ChevronRight size={16} className="text-gray-500 group-hover:text-white" />
-                           </button>
+                                 <ChevronRight size={16} className="text-gray-500 group-hover:text-white" />
+                              </button>
                            
                            <button 
                              onClick={() => navigate(`/live?search=ssc`)} 
@@ -262,6 +287,7 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
                            </button>
                         </div>
                      </div>
+                  </div>
 
                   </motion.div>
                )}
@@ -452,6 +478,95 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
                   </motion.div>
                )}
 
+               {/* -------------------- PLAYERS & RATINGS TAB -------------------- */}
+               {activeTab === 'players' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                     <div className="bg-[#181818] border border-white/5 rounded-xl p-4 text-center mb-4">
+                        <h2 className="text-brand font-bold uppercase tracking-wider text-sm">
+                           تقييمات وإحصاءات اللاعبين
+                        </h2>
+                     </div>
+
+                     {players && players.length > 0 ? (
+                        players.map((teamData: any, tIdx: number) => (
+                           <div key={tIdx} className="bg-[#181818] border border-white/5 rounded-xl p-4 md:p-6 mb-6">
+                              <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
+                                 <img src={teamData.team.logo} className="w-8 h-8" alt={teamData.team.name} />
+                                 <h3 className="font-bold text-lg text-white">{teamData.team.name}</h3>
+                              </div>
+                              <div className="space-y-3">
+                                 {teamData.players
+                                    .sort((a: any, b: any) => {
+                                       const ratingA = parseFloat(a.statistics?.[0]?.games?.rating || "0");
+                                       const ratingB = parseFloat(b.statistics?.[0]?.games?.rating || "0");
+                                       return ratingB - ratingA;
+                                    })
+                                    .map((pData: any, pIdx: number) => {
+                                       const p = pData.player;
+                                       const stats = pData.statistics?.[0] || {};
+                                       const rating = parseFloat(stats.games?.rating || "0").toFixed(1);
+                                       const ratingNum = parseFloat(rating);
+                                       
+                                       // Colorize rating based on value: >=8.0 green, >=7.0 blue, >=6.0 orange, <6.0 red
+                                       let ratingColor = "bg-[#202020] text-gray-400";
+                                       if (ratingNum >= 8.0) ratingColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+                                       else if (ratingNum >= 7.0) ratingColor = "bg-blue-500/20 text-blue-400 border-blue-500/30";
+                                       else if (ratingNum >= 6.0) ratingColor = "bg-orange-500/20 text-orange-400 border-orange-500/30";
+                                       else if (ratingNum > 0) ratingColor = "bg-red-500/20 text-red-500 border-red-500/30";
+
+                                       if (ratingNum === 0) return null; // skip if no stats
+
+                                       return (
+                                          <div key={pIdx} className="bg-[#202020] border border-white/5 p-3 rounded-lg flex flex-col md:flex-row md:items-center gap-4 hover:border-brand/30 transition-colors">
+                                             <div className="flex items-center gap-3 w-full md:w-1/3">
+                                                <div className="relative">
+                                                   <img src={p.photo} className="w-10 h-10 rounded-full object-cover bg-black" alt={p.name} />
+                                                   <div className="absolute -bottom-1 -left-1 bg-black text-[9px] font-mono text-gray-300 w-5 h-5 flex items-center justify-center rounded-full border border-white/10">
+                                                      {p.number || '-'}
+                                                   </div>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                   <div className="text-sm font-bold text-gray-200 truncate">{p.name}</div>
+                                                   <div className="text-[10px] text-gray-500 uppercase">{stats.games?.position || '-'}</div>
+                                                </div>
+                                                <div className={clsx("ml-auto w-10 h-10 flex items-center justify-center rounded-lg border font-bold text-sm", ratingColor)}>
+                                                   {ratingNum > 0 ? rating : '-'}
+                                                </div>
+                                             </div>
+                                             
+                                             {/* Mini Stats Line */}
+                                             <div className="flex-1 grid grid-cols-4 gap-2 text-center items-center h-full pt-3 md:pt-0 border-t border-white/5 md:border-t-0">
+                                                <div className="flex flex-col items-center">
+                                                   <span className="text-white text-xs font-bold">{stats.goals?.total || 0}</span>
+                                                   <span className="text-[10px] text-gray-500">أهداف</span>
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                   <span className="text-white text-xs font-bold">{stats.goals?.assists || 0}</span>
+                                                   <span className="text-[10px] text-gray-500">صناعة</span>
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                   <span className="text-white text-xs font-bold">{stats.shots?.on || 0} / {stats.shots?.total || 0}</span>
+                                                   <span className="text-[10px] text-gray-500">تسديدات</span>
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                   <span className="text-white text-xs font-bold">{stats.passes?.accuracy || 0}%</span>
+                                                   <span className="text-[10px] text-gray-500">دقة التمرير</span>
+                                                </div>
+                                             </div>
+                                          </div>
+                                       );
+                                    })}
+                              </div>
+                           </div>
+                        ))
+                     ) : (
+                        <div className="text-center py-12 text-gray-500 bg-[#181818] border border-white/5 rounded-xl">
+                           الإحصاءات والتقييمات غير متوفرة لهذه المباراة بعد.
+                        </div>
+                     )}
+                  </motion.div>
+               )}
+
                {/* -------------------- H2H TAB -------------------- */}
                {activeTab === 'h2h' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -473,17 +588,21 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
                                           <span>{new Date(match.fixture.date).toLocaleDateString('ar-SA')}</span>
                                           <span className="truncate max-w-[50%]">{match.league.name}</span>
                                        </div>
-                                       <div className="flex justify-between items-center">
-                                          <div className="flex items-center gap-2 w-2/5 justify-end">
-                                             <span className="text-xs font-bold text-gray-300 truncate">{hHome.name}</span>
+                                       <div className="grid grid-cols-[1fr_auto_60px_auto_1fr] items-center gap-2">
+                                          <div className="flex justify-start min-w-0" dir="rtl">
+                                             <span className="text-xs font-bold text-gray-300 truncate text-right">{hHome.name}</span>
+                                          </div>
+                                          <div className="flex justify-center shrink-0">
                                              <img src={hHome.logo} className="w-5 h-5 rounded-full bg-white/10" />
                                           </div>
-                                          <div className="font-bold text-sm bg-[#121212] px-2 py-0.5 rounded text-white tracking-widest min-w-[50px] text-center">
+                                          <div className="font-bold text-sm bg-[#121212] px-2 py-0.5 rounded text-white tracking-widest text-center shrink-0">
                                              {sHome} - {sAway}
                                           </div>
-                                          <div className="flex items-center gap-2 w-2/5 justify-start">
+                                          <div className="flex justify-center shrink-0">
                                              <img src={hAway.logo} className="w-5 h-5 rounded-full bg-white/10" />
-                                             <span className="text-xs font-bold text-gray-300 truncate">{hAway.name}</span>
+                                          </div>
+                                          <div className="flex justify-end min-w-0" dir="ltr">
+                                             <span className="text-xs font-bold text-gray-300 truncate text-left">{hAway.name}</span>
                                           </div>
                                        </div>
                                     </div>
@@ -493,6 +612,32 @@ export default function MatchDetails({ credentials, onLogout }: { credentials: a
                         ) : (
                            <div className="text-center py-8 text-sm text-gray-500">لا توجد مواجهات سابقة مسجلة.</div>
                         )}
+                     </div>
+                  </motion.div>
+               )}
+
+               {/* -------------------- LEAGUE TAB -------------------- */}
+               {activeTab === 'league' && league?.id && league?.season && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-12">
+                     <div className="bg-[#181818] border border-white/5 rounded-xl p-4 flex flex-col md:flex-row items-center gap-4 justify-between">
+                        <div className="flex items-center gap-3">
+                           <img src={league.logo} className="w-10 h-10 object-contain" alt={league.name} />
+                           <div>
+                              <h3 className="font-bold text-lg text-white">{league.name}</h3>
+                              <p className="text-gray-400 text-sm">{league.country}</p>
+                           </div>
+                        </div>
+                        {league.flag && <img src={league.flag} className="w-8 h-6 object-cover rounded opacity-80" alt={league.country} />}
+                     </div>
+
+                     <div>
+                        <h4 className="font-bold mb-4 text-sm text-gray-400">جدول الترتيب (موسم {league.season})</h4>
+                        <StandingsWidget leagueId={league.id} season={league.season} homeTeamId={teams.home.id} awayTeamId={teams.away.id} />
+                     </div>
+
+                     <div className="pt-4">
+                        <h4 className="font-bold mb-4 text-sm text-gray-400">هدافو البطولة</h4>
+                        <TopScorersWidget leagueId={league.id} season={league.season} />
                      </div>
                   </motion.div>
                )}

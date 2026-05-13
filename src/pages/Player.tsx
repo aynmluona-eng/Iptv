@@ -127,6 +127,13 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
           console.error('Native HLS Error:', video.error);
           toast.error('تعذر تشغيل البث عبر المشغل المدمج.');
           setLoading(false);
+          // Try HLS.js as a fallback even in native just in case
+          if (Hls.isSupported()) {
+            hls = new Hls();
+            hls.loadSource(streamUrl);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+          }
         });
       } else if (Hls.isSupported() && ext === 'm3u8') {
 

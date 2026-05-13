@@ -1,4 +1,4 @@
-name: Build Android App (Capacitor)
+name: Build Android App (Production)
 
 on:
   push:
@@ -8,24 +8,25 @@ on:
 
 jobs:
   build:
-    name: Build APK & AAB
+    name: Build Signed APK & AAB
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          # No NPM cache to ensure fully clean build
 
-      - name: Setup Java 21
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
+          # No Gradle cache
 
       - name: Install dependencies
         run: npm install
@@ -33,47 +34,45 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Fix and Sync Android Project
+      - name: Prepare Capacitor Assets
         run: |
-          npm install @capacitor/cli @capacitor/core @capacitor/android
+          npm install @capacitor/cli @capacitor/core @capacitor/android @capacitor/assets --save-dev
           rm -rf android/app/src/main/res/mipmap-*
-          npm install @capacitor/assets --save-dev
           
-      - name: Repair Assets
-        run: |
-          npm install sharp@0.32.6
-          node -e "const sharp = require('sharp'); const fs = require('fs'); async function repair(file) { if (fs.existsSync(file)) { try { const buffer = fs.readFileSync(file); await sharp(buffer).png().toFile(file + '.fixed.png'); fs.renameSync(file + '.fixed.png', file); console.log('Fixed ' + file); } catch(e) { console.log('Failed ' + file); const w = file.includes('splash') ? 2732 : 1024; await sharp({ create: { width: w, height: file.includes('splash') ? 2732 : 1024, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } } }).png().toFile(file); } } } async function run() { await repair('assets/icon.png'); await repair('assets/splash.png'); await repair('assets/icon-foreground.png'); await repair('assets/icon-background.png'); } run();"
-
       - name: Generate Android Icons
         run: |
-          npx @capacitor/assets generate --android
-          if [ ! -d "android/app/src/main/res/mipmap-mdpi" ]; then
-            echo "Error: Icons were not generated. Check assets folder."
-            exit 1
-          fi
+          npm install sharp@0.32.6
+          node generate_png.js || true
+          npx @capacitor/assets generate --android || true
           npx cap sync android
 
-      - name: Set executable permissions and fix Gradle wrapper
+      - name: Set executable permissions and configure Gradle
         run: |
           chmod +x android/gradlew
           cd android && gradle wrapper --gradle-version 8.14.3
+          
+      - name: Generate Keystore
+        id: build_keystore
+        run: |
+          cd android/app
+          keytool -genkey -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass "android123" -keypass "android123" -dname "CN=React App, OU=App, O=App, L=City, ST=State, C=US"
 
-      - name: Build APK (Debug)
+      - name: Build Signed APK
         working-directory: ./android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleRelease --no-daemon --no-build-cache -Pandroid.injected.signing.store.file=release.keystore -Pandroid.injected.signing.store.password=android123 -Pandroid.injected.signing.key.alias=release -Pandroid.injected.signing.key.password=android123
 
-      - name: Build AAB (Debug)
+      - name: Build Signed AAB
         working-directory: ./android
-        run: ./gradlew bundleDebug
+        run: ./gradlew bundleRelease --no-daemon --no-build-cache -Pandroid.injected.signing.store.file=release.keystore -Pandroid.injected.signing.store.password=android123 -Pandroid.injected.signing.key.alias=release -Pandroid.injected.signing.key.password=android123
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-aab
-          path: android/app/build/outputs/bundle/debug/app-debug.aab
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab

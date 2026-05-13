@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // To use this, users need an API key from https://www.api-football.com/
-const API_KEY = (import.meta as any).env?.VITE_SPORTS_API_KEY;
+const API_KEY = (import.meta as any).env?.VITE_SPORTS_API_KEY || '104f71500dcf15b2ab1276dc7ecfbf0a';
 const API_HOST = 'v3.football.api-sports.io';
 const BASE_URL = `https://${API_HOST}`;
 
@@ -51,6 +51,28 @@ export const getH2H = async (h2h: string) => {
   const response = await axios.get(`${BASE_URL}/fixtures/headtohead`, {
     headers: getHeaders(),
     params: { h2h } // e.g., "team1Id-team2Id"
+  });
+
+  return response.data?.response || [];
+};
+
+export const getStandings = async (leagueId: number, season: number) => {
+  if (!hasSportsApiConfigured()) throw new Error("API_KEY_MISSING");
+
+  const response = await axios.get(`${BASE_URL}/standings`, {
+    headers: getHeaders(),
+    params: { league: leagueId, season: season }
+  });
+
+  return response.data?.response[0]?.league?.standings[0] || [];
+};
+
+export const getTopScorers = async (leagueId: number, season: number) => {
+  if (!hasSportsApiConfigured()) throw new Error("API_KEY_MISSING");
+
+  const response = await axios.get(`${BASE_URL}/players/topscorers`, {
+    headers: getHeaders(),
+    params: { league: leagueId, season: season }
   });
 
   return response.data?.response || [];

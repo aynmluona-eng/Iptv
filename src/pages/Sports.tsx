@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { Activity, Calendar, Trophy, AlertCircle, RefreshCw, ChevronUp, ChevronDown, MonitorPlay, Film, Tv } from 'lucide-react';
+import { Activity, Trophy, AlertCircle, RefreshCw, ChevronUp, ChevronDown, MapPin } from 'lucide-react';
 import { getTodaysFixtures, hasSportsApiConfigured } from '../services/sports';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
+import { MatchCard } from '../components/MatchCard';
 
 export default function Sports({ onLogout }: { onLogout: () => void }) {
   const [fixturesByLeague, setFixturesByLeague] = useState<any[]>([]);
+  const [featuredMatches, setFeaturedMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [apiMissing, setApiMissing] = useState(false);
   
-  // Date selection (-1 = yesterday, 0 = today, 1 = tomorrow, 2 = day after, etc)
   const [dateOffset, setDateOffset] = useState(0);
   const [collapsedLeagues, setCollapsedLeagues] = useState<Record<string, boolean>>({});
 
@@ -60,6 +61,15 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
       const getLeaguePriority = (leagueId: number) => {
         return TOP_LEAGUES.includes(leagueId) ? 1 : 2;
       };
+
+      // Extract some featured matches (Top league + live or upcoming today)
+      let featured: any[] = [];
+      if (offset === 0) {
+         featured = data.filter((m: any) => TOP_LEAGUES.includes(m.league.id));
+         featured.sort((a: any, b: any) => getStatusPriority(a.fixture.status.short) - getStatusPriority(b.fixture.status.short));
+         featured = featured.slice(0, 5); // Take top 5
+      }
+      setFeaturedMatches(featured);
 
       // Group by league
       const grouped: Record<number, any> = {};
@@ -135,10 +145,10 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
   const datesList = [-1, 0, 1, 2, 3, 4];
 
   return (
-    <div className="flex min-h-[100vh] bg-black text-white selection:bg-brand/30 font-sans">
+    <div className="flex min-h-[100vh] bg-black text-white selection:bg-brand/30 font-sans w-full overflow-x-hidden">
       <Navigation onLogout={onLogout} />
       
-      <main className="flex-1 md:pr-[260px] pb-32 md:pb-12 relative bg-[#0A0A0A]">
+      <main className="flex-1 md:pr-[260px] pb-32 md:pb-12 relative bg-[#0A0A0A] w-full max-w-[100vw] overflow-x-hidden">
         {/* Date Selector Header */}
         <div className="sticky top-0 z-40 bg-[#0A0A0A]/95 backdrop-blur-md border-b border-white/5">
            <div className="flex items-center justify-center overflow-x-auto styled-scrollbar hide-scrollbar px-4 w-full">
@@ -159,25 +169,22 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
            </div>
         </div>
 
-        <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 mt-4">
-           {/* Section Title */}
-           <div className="text-center mb-6">
-              <h1 className="text-xl font-bold flex items-center justify-center gap-2">أتابع</h1>
-              <p className="text-gray-500 text-sm mt-1">لا مباريات اليوم</p>
-           </div>
-
-           {apiMissing && (
-             <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-6 text-orange-400">
-                <div className="flex gap-4 items-start">
-                   <AlertCircle size={24} className="shrink-0 mt-1" />
-                   <div>
-                     <h3 className="font-bold text-lg mb-2 text-orange-500">خاصية المباريات غير مفعلة</h3>
-                     <p className="mb-4 text-sm text-orange-200">
-                       بما أن هذا التطبيق مستقل، يحتاج مالك التطبيق إلى تفعيل ميزة المباريات عن طريق إضافة مفتاح <code className="bg-black/30 px-1 py-0.5 rounded text-white mx-1">VITE_SPORTS_API_KEY</code> من موقع api-football.com في إعدادات البيئة الخاصة بالتطبيق.
-                     </p>
-                   </div>
+        <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 mt-2">
+           
+           {/* Featured Matches Slider (Modern Style) */}
+           {!loading && !apiMissing && !error && featuredMatches.length > 0 && dateOffset === 0 && (
+              <div className="mb-8">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                   <Activity className="text-brand" size={24} /> أبرز المباريات
+                </h2>
+                <div className="flex gap-4 overflow-x-auto pb-4 snap-x hide-scrollbar styled-scrollbar">
+                   {featuredMatches.map((match: any, idx: number) => (
+                      <div key={idx} className="min-w-[280px] sm:min-w-[340px] snap-center">
+                         <MatchCard item={match} getStatusText={getStatusText} featured={true} />
+                      </div>
+                   ))}
                 </div>
-             </div>
+              </div>
            )}
 
            {loading && !apiMissing && (
@@ -202,8 +209,9 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
               </div>
            )}
 
+           {/* All Leagues List */}
            {!loading && !apiMissing && fixturesByLeague.length > 0 && (
-             <div className="space-y-4 shadow-xl">
+             <div className="space-y-4">
                {fixturesByLeague.map((group: any) => {
                  const isCollapsed = collapsedLeagues[group.league.id];
                  
@@ -211,16 +219,18 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
                     <div key={group.league.id} className="bg-[#121212] border border-white/5 rounded-[16px] overflow-hidden">
                        <button 
                          onClick={() => toggleLeague(group.league.id)}
-                         className="w-full bg-[#181818] p-4 flex items-center justify-between hover:bg-[#202020] transition-colors"
+                         className="w-full bg-[#161616] p-4 flex items-center justify-between hover:bg-[#1f1f1f] transition-colors"
                        >
                           <div className="flex items-center gap-3">
-                             <span className="text-gray-400">
+                             <img src={group.league.logo} alt={group.league.name} className="w-6 h-6 object-contain" />
+                             <span className="font-bold text-white text-sm md:text-base">{group.league.country} - {group.league.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                             {group.league.flag && <img src={group.league.flag} className="w-6 h-4 object-cover rounded-[2px] opacity-80" />}
+                             <span className="text-gray-500">
                                 {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
                              </span>
-                             <span className="font-bold text-white text-base md:text-lg">{group.league.country} - {group.league.name}</span>
-                             <img src={group.league.logo} alt={group.league.name} className="w-6 h-6 object-contain" />
                           </div>
-                          {group.league.flag && <img src={group.league.flag} className="w-6 h-4 object-cover rounded-[2px] opacity-80" />}
                        </button>
 
                        <AnimatePresence>
@@ -232,55 +242,9 @@ export default function Sports({ onLogout }: { onLogout: () => void }) {
                                style={{ overflow: 'hidden' }}
                              >
                                 <div className="divide-y divide-white/5">
-                                   {group.fixtures.map((item: any) => {
-                                      const match = item.fixture;
-                                      const teams = item.teams;
-                                      const goals = item.goals;
-                                      
-                                      const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'LIVE'].includes(match.status.short);
-
-                                      return (
-                                         <div 
-                                           key={match.id}
-                                           onClick={() => navigate(`/sports/match/${match.id}`)}
-                                           className="p-4 md:p-5 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer relative"
-                                         >
-                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex opacity-50 gap-2">
-                                              <Tv size={16} className="text-gray-400" />
-                                            </div>
-
-                                            <div className="flex-1 flex items-center justify-center w-full">
-                                              {/* Home Team (Right Side in RTL) */}
-                                              <div className="flex flex-1 items-center justify-end gap-2 md:gap-3 min-w-0">
-                                                 <span className="font-bold text-xs md:text-sm lg:text-base truncate text-right" dir="auto">{teams.home.name}</span>
-                                                 <img src={teams.home.logo} className="w-6 h-6 md:w-8 md:h-8 object-contain shrink-0" alt="" />
-                                              </div>
-
-                                              {/* Score / Time (Center) */}
-                                              <div className="flex flex-col items-center justify-center shrink-0 w-[80px] md:w-[100px] mx-1 md:mx-2">
-                                                 {(match.status.short === 'NS' || match.status.short === 'PST') ? (
-                                                    <div className="font-bold text-gray-400 text-xs md:text-sm bg-white/5 py-1 px-3 rounded-full">
-                                                       {getStatusText({ ...match.status, date: match.date })}
-                                                    </div>
-                                                 ) : (
-                                                    <div className="flex flex-col items-center">
-                                                       <div className="font-black text-sm md:text-xl text-white tracking-widest bg-black/60 px-3 py-1 rounded">
-                                                          {goals.home ?? 0} <span className="px-1 text-gray-600">-</span> {goals.away ?? 0}
-                                                       </div>
-                                                       {isLive && <div className="text-[10px] md:text-[11px] text-brand font-bold mt-1 animate-pulse">{match.status.elapsed}' مباشر</div>}
-                                                    </div>
-                                                 )}
-                                              </div>
-
-                                              {/* Away Team (Left Side in RTL) */}
-                                              <div className="flex flex-1 items-center justify-start gap-2 md:gap-3 min-w-0">
-                                                 <img src={teams.away.logo} className="w-6 h-6 md:w-8 md:h-8 object-contain shrink-0" alt="" />
-                                                 <span className="font-bold text-xs md:text-sm lg:text-base truncate text-left" dir="auto">{teams.away.name}</span>
-                                              </div>
-                                            </div>
-                                         </div>
-                                      );
-                                   })}
+                                   {group.fixtures.map((item: any) => (
+                                       <MatchCard key={item.fixture.id} item={item} getStatusText={getStatusText} />
+                                   ))}
                                 </div>
                              </motion.div>
                           )}
