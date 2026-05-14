@@ -73,7 +73,7 @@ app.all("/api/stream", async (req, res) => {
 
           res.status(proxyRes.statusCode || 200);
           
-          const ignoreHeaders = ['connection', 'keep-alive', 'transfer-encoding', 'strict-transport-security'];
+          const ignoreHeaders = ['connection', 'keep-alive', 'transfer-encoding', 'strict-transport-security', 'access-control-allow-origin', 'access-control-allow-methods', 'access-control-allow-headers', 'access-control-expose-headers'];
           Object.entries(proxyRes.headers).forEach(([key, value]) => {
               if (value && !ignoreHeaders.includes(key.toLowerCase())) {
                  try {
@@ -231,7 +231,7 @@ app.all("/api/proxy", async (req, res) => {
     if (response && response.headers) {
       Object.entries(response.headers).forEach(([key, val]) => {
         const lowerKey = key.toLowerCase();
-        if (['transfer-encoding', 'connection', 'keep-alive', 'content-length'].includes(lowerKey)) return;
+        if (['transfer-encoding', 'connection', 'keep-alive', 'content-length', 'access-control-allow-origin', 'access-control-allow-methods', 'access-control-allow-headers'].includes(lowerKey)) return;
         try {
           res.setHeader(key, val as string | string[]);
         } catch (e) {

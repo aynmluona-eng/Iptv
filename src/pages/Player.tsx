@@ -144,6 +144,11 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
           maxLoadingDelay: 4,
           minAutoBitrate: 0,
           lowLatencyMode: true,
+          fragLoadingTimeOut: 30000,
+          manifestLoadingTimeOut: 30000,
+          levelLoadingTimeOut: 30000,
+          fragLoadingMaxRetry: 10,
+          manifestLoadingMaxRetry: 5,
         });
         hlsRef.current = hls;
         
@@ -156,13 +161,17 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         });
         
         hls.on(Hls.Events.ERROR, (event, data) => {
-          setLoadingText(`خطأ: ${data.type} - ${data.details}`);
+          if (!data.fatal) {
+             setLoadingText(`تحميل... (${data.details})`);
+             return;
+          }
+          setLoadingText(`خطأ: ${data.details}. جاري المحاولة...`);
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                  console.warn("fatal network error encountered, try to recover");
                  hls.startLoad();
-                 handleStreamError();
+                 // Only trigger full player restart if we're really stuck (handled by handleWaiting/stallTimeout usually)
                  break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                  console.warn("fatal media error encountered, try to recover");
