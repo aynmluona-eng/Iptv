@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Hls from 'hls.js';
+import { Capacitor } from '@capacitor/core';
 import { XtreamCredentials, getStreamUrl, getOriginalStreamUrl } from '../lib/xtream';
 import { 
   ArrowLeft, Loader2, Play, Pause, Volume2, VolumeX, Maximize, 
@@ -123,6 +124,11 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
       setError('');
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       
+      let isNative = false;
+      try {
+         isNative = Capacitor.isNativePlatform() || !!(window as any).Capacitor?.isNative;
+      } catch(e) {}
+      
       if (ext === 'm3u8' && Hls.isSupported()) {
         if (hlsRef.current) {
           hlsRef.current.destroy();
@@ -145,12 +151,12 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                 console.log("fatal network error encountered, try to recover");
+                 console.warn("fatal network error encountered, try to recover");
                  hls.startLoad();
                  handleStreamError();
                  break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                 console.log("fatal media error encountered, try to recover");
+                 console.warn("fatal media error encountered, try to recover");
                  hls.recoverMediaError();
                  break;
               default:
@@ -164,9 +170,10 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         // Fallback or native support
         video.src = streamUrl;
         video.load();
+        playVideo();
       }
     };
-
+    
     const handleStreamError = () => {
       if (type === 'live') {
          if (retryCount < MAX_RETRIES) {
@@ -204,8 +211,22 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     };
     
     const handlePause = () => setIsPlaying(false);
-    const handleWaiting = () => setLoading(true);
-    const handlePlaying = () => setLoading(false);
+    
+    let stallTimeout: NodeJS.Timeout | null = null;
+    const handleWaiting = () => {
+       setLoading(true);
+       if (stallTimeout) clearTimeout(stallTimeout);
+       stallTimeout = setTimeout(() => {
+          if (video.readyState < 3 && isPlaying) {
+             console.warn("Video stalled for too long!");
+             handleStreamError();
+          }
+       }, 15000); // 15 seconds max wait
+    };
+    const handlePlaying = () => {
+       setLoading(false);
+       if (stallTimeout) clearTimeout(stallTimeout);
+    };
     
     const handleError = (e: Event) => {
        console.error("Native Video Error:", video.error);
@@ -221,6 +242,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     video.addEventListener('error', handleError);
 
     return () => { 
+      if (stallTimeout) clearTimeout(stallTimeout);
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       if (hlsRef.current) hlsRef.current.destroy();
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
