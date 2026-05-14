@@ -46,6 +46,8 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
   const bassFilterRef = useRef<BiquadFilterNode | null>(null);
   const trebleFilterRef = useRef<BiquadFilterNode | null>(null);
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTimeRef = useRef<number>(0);
   const [hlsInstance, setHlsInstance] = useState<Hls | null>(null);
   const [mpegtsInstance, setMpegtsInstance] = useState<any>(null);
   const [qualityLevels, setQualityLevels] = useState<{height: number, bitrate: number}[]>([]);
@@ -126,16 +128,14 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
           maxBufferSize: 300 * 1000 * 1000, // Default is 60MB, boost to ~300MB
           enableWorker: true,
           lowLatencyMode: false,
-          backBufferLength: 90, // Keep 90s behind to prevent re-fetching on small seeks
-          fragLoadingMaxRetry: 10,
-          manifestLoadingMaxRetry: 10,
-          levelLoadingMaxRetry: 10,
-          abrEwmaDefaultEstimate: 5000000, // Default 5Mbps estimate to start high quality fast
-          xhrSetup: function(xhr, url) {
-            try {
-              xhr.setRequestHeader('User-Agent', 'IPTVSmartersPro');
-            } catch (e) {}
-          }
+          backBufferLength: 90, 
+          fragLoadingMaxRetry: 15, // High retry count for live streams
+          manifestLoadingMaxRetry: 15,
+          levelLoadingMaxRetry: 15,
+          fragLoadingTimeOut: 20000,
+          manifestLoadingTimeOut: 20000,
+          levelLoadingTimeOut: 20000,
+          abrEwmaDefaultEstimate: 5000000 // Default 5Mbps estimate to start high quality fast
         });
         hls.loadSource(streamUrl);
         hls.attachMedia(video);
@@ -188,10 +188,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
             lazyLoad: false,
             autoCleanupSourceBuffer: true,
             autoCleanupMaxBackwardDuration: 5 * 60,
-            autoCleanupMinBackwardDuration: 2 * 60,
-            headers: {
-              'User-Agent': 'IPTVSmartersPro'
-            }
+            autoCleanupMinBackwardDuration: 2 * 60
          });
          
          flvPlayer.attachMediaElement(video);
@@ -253,7 +250,18 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     const handleTimeUpdate = () => {
       setProgress(video.currentTime);
       setDuration(video.duration || 0);
+      lastTimeRef.current = video.currentTime;
     };
+
+    if (type === 'live') {
+      stallCheckIntervalRef.current = setInterval(() => {
+        if (!video.paused && !loading && video.currentTime === lastTimeRef.current) {
+          console.log('Stream stalled, attempting to reload...');
+          toast.warning('يبدو أن البث توقف. جاري إعادة الاتصال...');
+          initPlayer();
+        }
+      }, 15000); // Check every 15s
+    }
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
@@ -263,6 +271,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     video.addEventListener('pause', handlePause);
 
     return () => { 
+      if (stallCheckIntervalRef.current) clearInterval(stallCheckIntervalRef.current);
       hls?.destroy(); 
       if (flvPlayer) {
           flvPlayer.unload();

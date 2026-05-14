@@ -37,12 +37,22 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
         }
 
         // Fetch short EPG
-        const epg = await fetchXtreamApi(credentials, 'get_short_epg', { stream_id: id, limit: "100" }).catch(() => null);
+        let epg = await fetchXtreamApi(credentials, 'get_short_epg', { stream_id: id, limit: "100" }).catch(() => null);
         let listings = [];
         if (epg && epg.epg_listings) {
           listings = epg.epg_listings;
         } else if (Array.isArray(epg)) {
           listings = epg;
+        }
+        
+        // Fallback to get_simple_data_table if the provider uses older Xtream Codes version
+        if (listings.length === 0) {
+          epg = await fetchXtreamApi(credentials, 'get_simple_data_table', { stream_id: id }).catch(() => null);
+          if (epg && epg.epg_listings) {
+             listings = epg.epg_listings;
+          } else if (Array.isArray(epg)) {
+             listings = epg;
+          }
         }
         
         if (listings.length > 0) {
