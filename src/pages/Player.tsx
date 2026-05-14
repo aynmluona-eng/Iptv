@@ -26,7 +26,9 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
+  const [loadingText, setLoadingText] = useState("جاري معالجة البث...");
   const [error, setError] = useState('');
+  const [forceHls, setForceHls] = useState(false);
   
   // Player State
   const [isPlaying, setIsPlaying] = useState(true);
@@ -111,6 +113,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         await video.play();
         setLoading(false);
         setError('');
+        setLoadingText(""); // clear loading text
         isRetrying = false;
         retryCount = 0;
       } catch (e: any) {
@@ -120,6 +123,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     };
 
     const initPlayer = () => {
+      setLoadingText("جاري الاتصال بالسيرفر...");
       setLoading(true);
       setError('');
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
@@ -129,7 +133,10 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
          isNative = Capacitor.isNativePlatform() || !!(window as any).Capacitor?.isNative;
       } catch(e) {}
       
-      if (ext === 'm3u8' && Hls.isSupported()) {
+      const useHlsJS = (!isNative || forceHls) && ext === 'm3u8' && Hls.isSupported();
+      
+      if (useHlsJS) {
+        setLoadingText("جاري تهيئة مشغل HLS...");
         if (hlsRef.current) {
           hlsRef.current.destroy();
         }
@@ -144,10 +151,12 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         hls.attachMedia(video);
         
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setLoadingText("تم جلب المسار، جاري التشغيل...");
           playVideo();
         });
         
         hls.on(Hls.Events.ERROR, (event, data) => {
+          setLoadingText(`خطأ: ${data.type} - ${data.details}`);
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
@@ -168,6 +177,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         });
       } else {
         // Fallback or native support
+        setLoadingText("جاري المشغل الأساسي...");
         video.src = streamUrl;
         video.load();
         playVideo();
@@ -230,6 +240,14 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     
     const handleError = (e: Event) => {
        console.error("Native Video Error:", video.error);
+       if (video.error && video.error.code === 4) {
+          if (!forceHls && ext === 'm3u8' && Hls.isSupported()) {
+             console.warn("Native player failed, falling back to Hls.js");
+             setForceHls(true); // This will trigger re-render, we should call initPlayer in next tick or useEffect? Actually we can just wait for re-render to do it if we have a useEffect on forceHls, but initPlayer is closed over it. Let's just call setForceHls which will re-run useEffect.
+             return;
+          }
+          setError("خطأ في المشغل الداخلي: السيرفر لا يدعم هذا البث، أو الصيغة غير مدعومة لهاتفك. سيتم تخطي المشغل تلقائياً خلال ثواني.");
+       }
        handleStreamError();
     };
 
@@ -256,7 +274,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
       video.removeAttribute('src'); // clear the source
       video.load();
     };
-  }, [type, id, credentials, ext]);
+  }, [type, id, credentials, ext, forceHls]);
 
   const togglePlay = (e?: React.MouseEvent) => { 
     e?.stopPropagation();
@@ -472,7 +490,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
             className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-10"
           >
             <div className="w-16 h-16 border-4 border-white/20 border-t-brand rounded-full animate-spin mb-4"></div>
-            <p className="text-white font-medium">جاري معالجة البث...</p>
+            <p className="text-white font-medium text-center px-4" dir="rtl">{loadingText}</p>
           </motion.div>
         )}
       </AnimatePresence>
