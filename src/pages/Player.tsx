@@ -109,9 +109,8 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         isRetrying = false;
       } catch (e: any) {
         console.error("Play prevented:", e);
-        if (e?.name !== 'AbortError') {
-          handleStreamError();
-        }
+        // Do not trigger retry on play() failure, it's often just an autoplay restriction or timing issue
+        setLoading(false);
       }
     };
 
@@ -123,7 +122,6 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
       // Native live stream source format
       video.src = streamUrl;
       video.load();
-      playVideo();
     };
 
     const handleStreamError = () => {
@@ -143,6 +141,10 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
 
     initPlayer();
     
+    const handleLoadedMetadata = () => {
+       playVideo();
+    };
+
     const handleTimeUpdate = () => {
       setProgress(video.currentTime);
       setDuration(video.duration || 0);
@@ -159,9 +161,16 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     
     const handleError = (e: Event) => {
        console.error("Native Video Error:", video.error);
-       handleStreamError();
+       if (video.error && video.error.code === 4) {
+           setError("الصيغة غير مدعومة في المتصفح الحالي. هذا المشغل مخصص لتطبيق الهاتف.");
+           setLoading(false);
+           if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+       } else {
+           handleStreamError();
+       }
     };
 
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
@@ -171,6 +180,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
 
     return () => { 
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
