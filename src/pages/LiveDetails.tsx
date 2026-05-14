@@ -14,7 +14,13 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
   const [epgData, setEpgData] = useState<any[]>([]);
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -37,7 +43,9 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
         }
 
         // Fetch short EPG
-        let epg = await fetchXtreamApi(credentials, 'get_short_epg', { stream_id: id, limit: "100" }).catch(() => null);
+        // Added Cache-Buster random param to prevent stale EPG
+        const cacheBuster = Math.floor(Date.now() / 1000);
+        let epg = await fetchXtreamApi(credentials, 'get_short_epg', { stream_id: id, limit: "100", _cb: cacheBuster }).catch(() => null);
         let listings = [];
         if (epg && epg.epg_listings) {
           listings = epg.epg_listings;
@@ -96,21 +104,25 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
   };
 
   const parseEpgDate = (timestamp: any, dateString: any) => {
-    if (timestamp) {
+    // Determine provider's EPG timezone offset by checking local time diff if needed, 
+    // but in Xtream, timestamps are ideally UTC. Some providers mistakenly send Local time as UTC.
+    // We treat timestamp directly. If EPG is out of sync, providers usually fix it via XMLTV.
+    if (timestamp && timestamp !== "" && timestamp !== "0") {
        const ts = parseInt(timestamp, 10);
        if (!isNaN(ts) && ts > 0) return new Date(ts * 1000);
     }
     if (dateString) {
-       return new Date(dateString.replace(' ', 'T'));
+       // Append +00:00 to force parsing as UTC instead of local if tz is missing
+       const formatted = dateString.replace(' ', 'T');
+       return new Date(formatted + (formatted.includes('+') ? '' : '+00:00'));
     }
     return new Date();
   };
 
   let currentProgram = epgData.find((p: any) => {
-    const now = new Date();
     const start = parseEpgDate(p.start_timestamp, p.start);
     const end = parseEpgDate(p.stop_timestamp, p.end);
-    return now >= start && now <= end;
+    return currentTime >= start && currentTime <= end;
   });
 
   
@@ -227,10 +239,9 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
                 {epgData.map((program: any, idx: number) => {
                   const start = parseEpgDate(program.start_timestamp, program.start);
                   const end = parseEpgDate(program.stop_timestamp, program.end);
-                  const now = new Date();
-                  const isCurrent = now >= start && now <= end;
-                  const isPast = now > end;
-                  const isUpcoming = now < start;
+                  const isCurrent = currentTime >= start && currentTime <= end;
+                  const isPast = currentTime > end;
+                  const isUpcoming = currentTime < start;
                   const title = program.title ? decodeEpg(program.title) : 'برنامج مجهول';
                   const desc = program.description ? decodeEpg(program.description) : '';
                   const durationMs = end.getTime() - start.getTime();
@@ -238,7 +249,7 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
                   
                   let progress = 0;
                   if (isCurrent) {
-                    const elapsedMs = now.getTime() - start.getTime();
+                    const elapsedMs = currentTime.getTime() - start.getTime();
                     progress = Math.min(100, Math.max(0, (elapsedMs / durationMs) * 100));
                   }
 

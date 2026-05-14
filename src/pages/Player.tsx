@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import Hls from 'hls.js';
-import mpegts from 'mpegts.js';
 import { XtreamCredentials, getStreamUrl, getOriginalStreamUrl } from '../lib/xtream';
 import { 
   ArrowLeft, Loader2, Play, Pause, Volume2, VolumeX, Maximize, 
@@ -15,13 +13,14 @@ import { toast } from 'sonner';
 export default function Player({ credentials }: { credentials: XtreamCredentials }) {
   const { type, id } = useParams<{ type: 'live' | 'movie' | 'series', id: string }>();
   const [searchParams] = useSearchParams();
-  const ext = searchParams.get('ext') || (type === 'live' ? 'm3u8' : 'mp4');
+  const ext = type === 'live' ? 'm3u8' : (searchParams.get('ext') || 'mp4');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressContainerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
@@ -46,13 +45,6 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
   const bassFilterRef = useRef<BiquadFilterNode | null>(null);
   const trebleFilterRef = useRef<BiquadFilterNode | null>(null);
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
-  const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTimeRef = useRef<number>(0);
-  const [hlsInstance, setHlsInstance] = useState<Hls | null>(null);
-  const [mpegtsInstance, setMpegtsInstance] = useState<any>(null);
-  const [qualityLevels, setQualityLevels] = useState<{height: number, bitrate: number}[]>([]);
-  const [currentQuality, setCurrentQuality] = useState(-1); // -1 is auto
-  const [hlsSupported, setHlsSupported] = useState(false);
 
   useEffect(() => {
     if (screenfull.isEnabled) {
@@ -105,143 +97,47 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
   useEffect(() => {
     if (!type || !id || !videoRef.current) return;
     const streamUrl = getStreamUrl(credentials, id, type, ext);
-    let hls: Hls | null = null;
     const video = videoRef.current;
+    
+    let isRetrying = false;
 
-    let flvPlayer: any = null;
+    const playVideo = async () => {
+      try {
+        await video.play();
+        setLoading(false);
+        setError('');
+        isRetrying = false;
+      } catch (e: any) {
+        console.error("Play prevented:", e);
+        if (e?.name !== 'AbortError') {
+          handleStreamError();
+        }
+      }
+    };
 
     const initPlayer = () => {
       setLoading(true);
       setError('');
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      
+      // Native live stream source format
+      video.src = streamUrl;
+      video.load();
+      playVideo();
+    };
 
-      let isNativeApp = false;
-      try {
-        isNativeApp = !!(window as any).Capacitor?.isNative;
-      } catch (e) {}
-
-      if (Hls.isSupported() && ext === 'm3u8') {
-
-        setHlsSupported(true);
-        hls = new Hls({
-          maxBufferLength: 120, // Target 120 seconds of buffer
-          maxMaxBufferLength: 600, // Allow up to 10 minutes of buffer
-          maxBufferSize: 300 * 1000 * 1000, // Default is 60MB, boost to ~300MB
-          enableWorker: true,
-          lowLatencyMode: false,
-          backBufferLength: 90, 
-          fragLoadingMaxRetry: 15, // High retry count for live streams
-          manifestLoadingMaxRetry: 15,
-          levelLoadingMaxRetry: 15,
-          fragLoadingTimeOut: 20000,
-          manifestLoadingTimeOut: 20000,
-          levelLoadingTimeOut: 20000,
-          abrEwmaDefaultEstimate: 5000000 // Default 5Mbps estimate to start high quality fast
-        });
-        hls.loadSource(streamUrl);
-        hls.attachMedia(video);
-        setHlsInstance(hls);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => { 
-          setLoading(false); 
-          if (data.levels) {
-             setQualityLevels(data.levels.map(l => ({ height: l.height, bitrate: l.bitrate })));
-          }
-          video.play().catch(e => console.error("Play failed", e)); 
-        });
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            console.error('HLS Error:', data);
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                console.log('fatal network error encountered, try to recover');
-                hls?.startLoad();
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                console.log('fatal media error encountered, try to recover');
-                hls?.recoverMediaError();
-                break;
-              default:
-                if (hls) {
-                   hls.destroy();
-                   setHlsInstance(null);
-                }
-                console.log('Falling back to native video player due to hls.js fatal error');
-                video.src = streamUrl;
-                video.play().catch(e => {
-                  const hlsErr = 'تعذر تشغيل الفيديو القناة.';
-                  setError(hlsErr);
-                  toast.error(hlsErr);
-                  setLoading(false);
-                });
-                break;
-            }
-          }
-        });
-      } else if (mpegts.getFeatureList().mseLivePlayback && ext === 'ts') {
-         flvPlayer = mpegts.createPlayer({
-             type: 'mse',
-             isLive: type === 'live',
-             url: streamUrl
-         }, {
-            enableStashBuffer: true,
-            stashInitialSize: 5242880, // 5MB stash initially
-            lazyLoad: false,
-            autoCleanupSourceBuffer: true,
-            autoCleanupMaxBackwardDuration: 5 * 60,
-            autoCleanupMinBackwardDuration: 2 * 60
-         });
-         
-         flvPlayer.attachMediaElement(video);
-         flvPlayer.load();
-         setMpegtsInstance(flvPlayer);
-
-         flvPlayer.on(mpegts.Events.MEDIA_INFO, () => {
-             setLoading(false);
-             video.play().catch(e => console.error("Play failed", e));
-         });
-
-         flvPlayer.on(mpegts.Events.ERROR, (err: any, errDet: any) => {
-             console.error("MPEGTS Error", err, errDet);
-             flvPlayer.destroy();
-             // Native fallback
-             video.src = streamUrl;
-             video.play().catch(e => {
-                  const mpegtssErr = 'تعذر تشغيل البث. حاول استخدام مشغل خارجي (MX).';
-                  setError(mpegtssErr);
-                  toast.error(mpegtssErr);
-                  setLoading(false);
-             });
-         });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl') && ext === 'm3u8') {
-        // Native HLS (Safari/iOS)
-        video.src = streamUrl;
-        video.addEventListener('loadedmetadata', () => { 
-          setLoading(false); 
-          video.play().catch(e => console.error("Play failed", e)); 
-        });
-      } else {
-        // MP4 / Other formats
-        video.src = streamUrl;
-        video.addEventListener('loadedmetadata', () => { 
-          setLoading(false); 
-          video.play().catch(e => console.error("Play failed", e)); 
-        });
-        
-        video.addEventListener('playing', () => setLoading(false));
-
-        video.addEventListener('error', (e) => {
-          console.error("Video Error:", video.error);
-          let errorMsg = 'تعذر تشغيل الفيديو.';
-          if (video.error) {
-            errorMsg += ` (Code: ${video.error.code})`;
-          }
-          if (ext && ext !== 'mp4' && ext !== 'm3u8') {
-             errorMsg += ` الصيغة ${ext.toUpperCase()} قد لا تكون مدعومة في المشغل المدمج. استخدم مشغل خارجي (MX).`;
-          }
-          setError(errorMsg);
-          toast.error(errorMsg);
-          setLoading(false);
-        });
+    const handleStreamError = () => {
+      if (type === 'live' && !isRetrying) {
+         isRetrying = true;
+         setLoading(true);
+         toast.error("حدث انقطاع، جاري محاولة إعادة الاتصال...");
+         console.warn("Retrying stream in 3s...");
+         retryTimeoutRef.current = setTimeout(() => {
+            initPlayer();
+         }, 3000);
+      } else if (type !== 'live') {
+         setError("تعذر تشغيل الفيديو، تأكد من اتصالك بالإنترنت.");
+         setLoading(false);
       }
     };
 
@@ -250,38 +146,40 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     const handleTimeUpdate = () => {
       setProgress(video.currentTime);
       setDuration(video.duration || 0);
-      lastTimeRef.current = video.currentTime;
     };
 
-    if (type === 'live') {
-      stallCheckIntervalRef.current = setInterval(() => {
-        if (!video.paused && !loading && video.currentTime === lastTimeRef.current) {
-          console.log('Stream stalled, attempting to reload...');
-          toast.warning('يبدو أن البث توقف. جاري إعادة الاتصال...');
-          initPlayer();
-        }
-      }, 15000); // Check every 15s
-    }
-
-    const handlePlay = () => setIsPlaying(true);
+    const handlePlay = () => {
+      setIsPlaying(true);
+      setLoading(false);
+    };
+    
     const handlePause = () => setIsPlaying(false);
+    const handleWaiting = () => setLoading(true);
+    const handlePlaying = () => setLoading(false);
+    
+    const handleError = (e: Event) => {
+       console.error("Native Video Error:", video.error);
+       handleStreamError();
+    };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
+    video.addEventListener('waiting', handleWaiting);
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('error', handleError);
 
     return () => { 
-      if (stallCheckIntervalRef.current) clearInterval(stallCheckIntervalRef.current);
-      hls?.destroy(); 
-      if (flvPlayer) {
-          flvPlayer.unload();
-          flvPlayer.detachMediaElement();
-          flvPlayer.destroy();
-      }
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
-      video.pause(); 
+      video.removeEventListener('waiting', handleWaiting);
+      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('error', handleError);
+      video.pause();
+      video.removeAttribute('src'); // clear the source
+      video.load();
     };
   }, [type, id, credentials, ext]);
 
@@ -394,15 +292,6 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
       videoRef.current.playbackRate = rate;
     }
     toast.success(`تم تغيير السرعة إلى ${rate}x`);
-    setShowSettings(false);
-  };
-
-  const handleQualityChange = (level: number) => {
-    setCurrentQuality(level);
-    if (hlsInstance) {
-      hlsInstance.currentLevel = level;
-    }
-    toast.info('تم تغيير الجودة، قد يستغرق التطبيق ثوانٍ للتبديل');
     setShowSettings(false);
   };
 
@@ -556,36 +445,6 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
                         )}
                       >
                         {rate}x
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Quality Settings */}
-              {hlsSupported && qualityLevels.length > 0 && (
-                <div>
-                  <label className="text-xs text-gray-400 block mb-2">الجودة</label>
-                  <div className="flex flex-col gap-1">
-                    <button 
-                      onClick={() => handleQualityChange(-1)}
-                      className={clsx(
-                        "text-right px-2 py-1.5 text-sm rounded transition-colors", 
-                        currentQuality === -1 ? "bg-brand text-black font-bold" : "text-white hover:bg-white/10"
-                      )}
-                    >
-                      تلقائي
-                    </button>
-                    {qualityLevels.map((level, index) => (
-                      <button 
-                         key={index} 
-                         onClick={() => handleQualityChange(index)}
-                         className={clsx(
-                           "text-right px-2 py-1.5 text-sm rounded transition-colors", 
-                           currentQuality === index ? "bg-brand text-black font-bold" : "text-white hover:bg-white/10"
-                         )}
-                      >
-                        {level.height}p {level.bitrate ? `(${Math.round(level.bitrate / 1000)}kbps)` : ''}
                       </button>
                     ))}
                   </div>
