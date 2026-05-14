@@ -117,25 +117,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         isNativeApp = !!(window as any).Capacitor?.isNative;
       } catch (e) {}
 
-      if (isNativeApp && ext === 'm3u8') {
-        video.src = streamUrl;
-        video.addEventListener('loadedmetadata', () => { 
-          setLoading(false); 
-          video.play().catch(e => console.error('Play failed', e)); 
-        });
-        video.addEventListener('error', (e) => {
-          console.error('Native HLS Error:', video.error);
-          toast.error('تعذر تشغيل البث عبر المشغل المدمج.');
-          setLoading(false);
-          // Try HLS.js as a fallback even in native just in case
-          if (Hls.isSupported()) {
-            hls = new Hls();
-            hls.loadSource(streamUrl);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-          }
-        });
-      } else if (Hls.isSupported() && ext === 'm3u8') {
+      if (Hls.isSupported() && ext === 'm3u8') {
 
         setHlsSupported(true);
         hls = new Hls({
@@ -195,17 +177,6 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
             }
           }
         });
-      } else if (isNativeApp && ext === 'ts') {
-        video.src = streamUrl;
-        video.addEventListener('loadedmetadata', () => { 
-          setLoading(false); 
-          video.play().catch(e => console.error('Play failed', e)); 
-        });
-        video.addEventListener('error', (e) => {
-          console.error('Native TS Error:', video.error);
-          toast.error('تعذر تشغيل البث المباشر المدمج. جرب مشغل خارجي.');
-          setLoading(false);
-        });
       } else if (mpegts.getFeatureList().mseLivePlayback && ext === 'ts') {
          flvPlayer = mpegts.createPlayer({
              type: 'mse',
@@ -238,7 +209,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
              // Native fallback
              video.src = streamUrl;
              video.play().catch(e => {
-                  const mpegtssErr = 'تعذر تشغيل البث. حاول استخدام مشغل خارجي (VLC/MX).';
+                  const mpegtssErr = 'تعذر تشغيل البث. حاول استخدام مشغل خارجي (MX).';
                   setError(mpegtssErr);
                   toast.error(mpegtssErr);
                   setLoading(false);
@@ -268,7 +239,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
             errorMsg += ` (Code: ${video.error.code})`;
           }
           if (ext && ext !== 'mp4' && ext !== 'm3u8') {
-             errorMsg += ` الصيغة ${ext.toUpperCase()} قد لا تكون مدعومة في المتصفح. استخدم زر VLC أو MX أعلاه.`;
+             errorMsg += ` الصيغة ${ext.toUpperCase()} قد لا تكون مدعومة في المشغل المدمج. استخدم مشغل خارجي (MX).`;
           }
           setError(errorMsg);
           toast.error(errorMsg);
@@ -347,7 +318,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     }
   };
 
-  const openExternalPlayer = async (playerExt: 'vlc' | 'mx', e?: React.MouseEvent) => {
+  const openExternalPlayer = async (playerExt: 'mx', e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!type || !id) return;
     const streamUrl = getOriginalStreamUrl(credentials, id, type, ext);
@@ -360,16 +331,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     
     let intentUrl = '';
 
-    if (playerExt === 'vlc') {
-      if (isIOS) {
-        intentUrl = `vlc-x-callback://x-callback-url/stream?url=${encodedUrl}`;
-      } else if (isAndroid) {
-        intentUrl = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;action=android.intent.action.VIEW;package=org.videolan.vlc;type=video/*;scheme=${scheme};end`;
-      } else {
-        window.open(streamUrl, '_blank');
-        return;
-      }
-    } else if (playerExt === 'mx') {
+    if (playerExt === 'mx') {
       if (isAndroid) {
          intentUrl = `intent://${streamUrl.replace(/^https?:\/\//i, '')}#Intent;action=android.intent.action.VIEW;package=com.mxtech.videoplayer.ad;type=video/*;scheme=${scheme};end`;
       } else {
@@ -701,12 +663,6 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
               </button>
               
               <div className="flex gap-2">
-                 <button 
-                   onClick={(e) => openExternalPlayer('vlc', e)} 
-                   className="px-4 py-2 bg-orange-500/80 backdrop-blur-md text-white font-bold text-sm rounded-full flex items-center gap-2 hover:bg-orange-500 transition-colors shadow-lg"
-                 >
-                   <MonitorPlay size={16} /> VLC
-                 </button>
                  <button 
                    onClick={(e) => openExternalPlayer('mx', e)} 
                    className="hidden md:flex px-4 py-2 bg-blue-500/80 backdrop-blur-md text-white font-bold text-sm rounded-full items-center gap-2 hover:bg-blue-500 transition-colors shadow-lg"

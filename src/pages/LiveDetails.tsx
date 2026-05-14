@@ -38,8 +38,15 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
 
         // Fetch short EPG
         const epg = await fetchXtreamApi(credentials, 'get_short_epg', { stream_id: id, limit: "100" }).catch(() => null);
+        let listings = [];
         if (epg && epg.epg_listings) {
-          setEpgData(epg.epg_listings);
+          listings = epg.epg_listings;
+        } else if (Array.isArray(epg)) {
+          listings = epg;
+        }
+        
+        if (listings.length > 0) {
+          setEpgData(listings);
         }
         
         setLoading(false);
@@ -72,16 +79,27 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
   const decodeEpg = (text: string) => {
     if (!text) return '';
     try { 
-      return atob(text).replace(/\+/g, ' ');
+      return decodeURIComponent(escape(atob(text))).replace(/\+/g, ' '); 
     } catch (e) { 
-        try { return decodeURIComponent(escape(atob(text))).replace(/\+/g, ' '); } catch(e2) { return text; }
+        try { return atob(text).replace(/\+/g, ' '); } catch(e2) { return text; }
     }
+  };
+
+  const parseEpgDate = (timestamp: any, dateString: any) => {
+    if (timestamp) {
+       const ts = parseInt(timestamp, 10);
+       if (!isNaN(ts) && ts > 0) return new Date(ts * 1000);
+    }
+    if (dateString) {
+       return new Date(dateString.replace(' ', 'T'));
+    }
+    return new Date();
   };
 
   let currentProgram = epgData.find((p: any) => {
     const now = new Date();
-    const start = new Date(p.start_timestamp * 1000 || p.start);
-    const end = new Date(p.stop_timestamp * 1000 || p.end);
+    const start = parseEpgDate(p.start_timestamp, p.start);
+    const end = parseEpgDate(p.stop_timestamp, p.end);
     return now >= start && now <= end;
   });
 
@@ -197,8 +215,8 @@ export default function LiveDetails({ credentials }: { credentials: XtreamCreden
                 <div className="absolute right-6 top-0 bottom-0 w-[2px] bg-white/5 md:block hidden"></div>
                 
                 {epgData.map((program: any, idx: number) => {
-                  const start = new Date(program.start_timestamp * 1000 || program.start);
-                  const end = new Date(program.stop_timestamp * 1000 || program.end);
+                  const start = parseEpgDate(program.start_timestamp, program.start);
+                  const end = parseEpgDate(program.stop_timestamp, program.end);
                   const now = new Date();
                   const isCurrent = now >= start && now <= end;
                   const isPast = now > end;

@@ -113,10 +113,10 @@ export default function Live({
   const decodeEpg = (text: string) => {
     if (!text) return "";
     try {
-      return atob(text).replace(/\+/g, " ");
+      return decodeURIComponent(escape(atob(text))).replace(/\+/g, " ");
     } catch (e) {
       try {
-        return decodeURIComponent(escape(atob(text))).replace(/\+/g, " ");
+        return atob(text).replace(/\+/g, " ");
       } catch (e2) {
         return text;
       }
