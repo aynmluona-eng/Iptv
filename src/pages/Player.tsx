@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import Hls from 'hls.js';
 import { XtreamCredentials, getStreamUrl, getOriginalStreamUrl } from '../lib/xtream';
 import { 
   ArrowLeft, Loader2, Play, Pause, Volume2, VolumeX, Maximize, 
@@ -45,6 +46,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
   const bassFilterRef = useRef<BiquadFilterNode | null>(null);
   const trebleFilterRef = useRef<BiquadFilterNode | null>(null);
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
 
   useEffect(() => {
     if (screenfull.isEnabled) {
@@ -99,6 +101,8 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     const streamUrl = getStreamUrl(credentials, id, type, ext);
     const video = videoRef.current;
     
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
     let isRetrying = false;
 
     const playVideo = async () => {
@@ -107,9 +111,9 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         setLoading(false);
         setError('');
         isRetrying = false;
+        retryCount = 0;
       } catch (e: any) {
         console.error("Play prevented:", e);
-        // Do not trigger retry on play() failure, it's often just an autoplay restriction or timing issue
         setLoading(false);
       }
     };
@@ -119,22 +123,66 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
       setError('');
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       
-      // Native live stream source format
-      video.src = streamUrl;
-      video.load();
+      if (ext === 'm3u8' && Hls.isSupported()) {
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+        }
+        const hls = new Hls({
+          maxLoadingDelay: 4,
+          minAutoBitrate: 0,
+          lowLatencyMode: true,
+        });
+        hlsRef.current = hls;
+        
+        hls.loadSource(streamUrl);
+        hls.attachMedia(video);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          playVideo();
+        });
+        
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                 console.log("fatal network error encountered, try to recover");
+                 hls.startLoad();
+                 handleStreamError();
+                 break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                 console.log("fatal media error encountered, try to recover");
+                 hls.recoverMediaError();
+                 break;
+              default:
+                 hls.destroy();
+                 handleStreamError();
+                 break;
+            }
+          }
+        });
+      } else {
+        // Fallback or native support
+        video.src = streamUrl;
+        video.load();
+      }
     };
 
     const handleStreamError = () => {
-      if (type === 'live' && !isRetrying) {
-         isRetrying = true;
-         setLoading(true);
-         toast.error("حدث انقطاع، جاري محاولة إعادة الاتصال...");
-         console.warn("Retrying stream in 3s...");
-         retryTimeoutRef.current = setTimeout(() => {
-            initPlayer();
-         }, 3000);
-      } else if (type !== 'live') {
-         setError("تعذر تشغيل الفيديو، تأكد من اتصالك بالإنترنت.");
+      if (type === 'live') {
+         if (retryCount < MAX_RETRIES) {
+             retryCount++;
+             setLoading(true);
+             toast.error(`حدث انقطاع، محاولة ${retryCount} لإعادة الاتصال...`);
+             console.warn("Retrying stream in 3s...");
+             retryTimeoutRef.current = setTimeout(() => {
+                initPlayer();
+             }, 3000);
+         } else {
+             setError("تعذر تشغيل العرض بعد عدة محاولات، السيرفر لا يستجيب أو الصيغة غير مدعومة.");
+             setLoading(false);
+         }
+      } else {
+         setError("تعذر تشغيل الفيديو، تأكد من اتصالك بالإنترنت واليوز الخص بك.");
          setLoading(false);
       }
     };
@@ -161,13 +209,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     
     const handleError = (e: Event) => {
        console.error("Native Video Error:", video.error);
-       if (video.error && video.error.code === 4) {
-           setError("الصيغة غير مدعومة في المتصفح الحالي. هذا المشغل مخصص لتطبيق الهاتف.");
-           setLoading(false);
-           if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-       } else {
-           handleStreamError();
-       }
+       handleStreamError();
     };
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -180,6 +222,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
 
     return () => { 
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      if (hlsRef.current) hlsRef.current.destroy();
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('play', handlePlay);
@@ -417,13 +460,15 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20 px-6 text-center">
           <MonitorPlay size={64} className="text-red-500 mb-4 opacity-50" />
           <p className="text-white text-lg font-bold mb-2">خطأ في التشغيل</p>
-          <p className="text-gray-400 mb-8">{error}</p>
-          <button 
-            onClick={() => navigate(-1)} 
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors flex items-center gap-2"
-          >
-            <ArrowLeft size={20} /> للـخـلـف
-          </button>
+          <p className="text-gray-400 mb-8 max-w-lg leading-relaxed">{error}</p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button 
+              onClick={() => navigate(-1)} 
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors flex items-center gap-2"
+            >
+              <ArrowLeft size={20} /> للـخـلـف
+            </button>
+          </div>
         </div>
       )}
       
@@ -541,12 +586,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
               </button>
               
               <div className="flex gap-2">
-                 <button 
-                   onClick={(e) => openExternalPlayer('mx', e)} 
-                   className="hidden md:flex px-4 py-2 bg-blue-500/80 backdrop-blur-md text-white font-bold text-sm rounded-full items-center gap-2 hover:bg-blue-500 transition-colors shadow-lg"
-                 >
-                   <MonitorPlay size={16} /> MX
-                 </button>
+                 {/* Internal player fully in use */}
               </div>
             </div>
 
