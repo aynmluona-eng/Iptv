@@ -200,7 +200,15 @@ export const getStreamUrl = (creds: XtreamCredentials, id: string | number, type
      return originalUrl;
   }
   
-  return `/api/stream?url=${encodeURIComponent(originalUrl)}`;
+  // Create stream proxy base url
+  try {
+     const urlObj = new URL(originalUrl);
+     const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+     const encodedBase = encodeURIComponent(baseUrl);
+     return `/api/stream-proxy/${encodedBase}${urlObj.pathname}${urlObj.search}`;
+  } catch(e) {
+     return `/api/stream-proxy/${encodeURIComponent(originalUrl)}`; // fallback
+  }
 };
 
 export const epgCache = new Map<string, { timestamp: number, data: any }>();

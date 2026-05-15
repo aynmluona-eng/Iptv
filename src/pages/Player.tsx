@@ -149,6 +149,20 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
           levelLoadingTimeOut: 30000,
           fragLoadingMaxRetry: 10,
           manifestLoadingMaxRetry: 5,
+          xhrSetup: (xhr, url) => {
+            let newUrl = url;
+            if (url.startsWith('http') && !url.includes('/api/stream-proxy/') && !url.includes('/api/stream')) {
+              try {
+                 const urlObj = new URL(url);
+                 const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+                 const encodedBase = encodeURIComponent(baseUrl);
+                 newUrl = `/api/stream-proxy/${encodedBase}${urlObj.pathname}${urlObj.search}`;
+              } catch(e) {
+                 newUrl = `/api/stream?url=${encodeURIComponent(url)}`;
+              }
+            }
+            xhr.open('GET', newUrl, true);
+          }
         });
         hlsRef.current = hls;
         
