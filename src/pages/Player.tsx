@@ -162,6 +162,11 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
               }
             }
             xhr.open('GET', newUrl, true);
+            if (isNative) {
+               try {
+                  xhr.setRequestHeader('User-Agent', 'IPTVSmartersPro');
+               } catch (e) {}
+            }
           }
         });
         hlsRef.current = hls;
@@ -526,8 +531,14 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
           <p className="text-gray-400 mb-8 max-w-lg leading-relaxed">{error}</p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <button 
+              onClick={(e) => openExternalPlayer('mx', e)} 
+              className="px-6 py-3 bg-brand/20 hover:bg-brand/30 text-brand border border-brand/20 hover:border-brand/40 rounded-full transition-colors flex items-center justify-center gap-2 font-bold"
+            >
+              <ExternalLink size={20} /> تشغيل عبر تطبيق MX Player
+            </button>
+            <button 
               onClick={() => navigate(-1)} 
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors flex items-center gap-2"
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors flex items-center justify-center gap-2"
             >
               <ArrowLeft size={20} /> للـخـلـف
             </button>
@@ -650,6 +661,13 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
               
               <div className="flex gap-2">
                  {/* Internal player fully in use */}
+                 <button 
+                   onClick={(e) => openExternalPlayer('mx', e)}
+                   className="px-4 h-12 bg-black/40 backdrop-blur-md text-brand rounded-xl flex items-center justify-center hover:bg-black/60 transition-colors border border-white/10 gap-2 text-sm font-bold"
+                   title="تشغيل في تطبيق خارجي (MX Player)"
+                 >
+                   <ExternalLink size={18} /> خارجي
+                 </button>
               </div>
             </div>
 
