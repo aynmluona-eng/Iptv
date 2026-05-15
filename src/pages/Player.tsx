@@ -151,7 +151,7 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
           manifestLoadingMaxRetry: 5,
           xhrSetup: (xhr, url) => {
             let newUrl = url;
-            if (url.startsWith('http') && !url.includes('/api/stream-proxy/') && !url.includes('/api/stream')) {
+            if (!isNative && url.startsWith('http') && !url.includes('/api/stream-proxy/') && !url.includes('/api/stream')) {
               try {
                  const urlObj = new URL(url);
                  const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
