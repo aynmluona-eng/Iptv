@@ -4,6 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.tafaraj.iptvplayer',
   appName: 'تفرج',
   webDir: 'dist',
+  overrideUserAgent: 'IPTVSmartersPro',
   server: {
     androidScheme: 'http',
     cleartext: true,

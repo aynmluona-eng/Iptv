@@ -269,12 +269,14 @@ export default function Player({ credentials }: { credentials: XtreamCredentials
     const handleError = (e: Event) => {
        console.error("Native Video Error:", video.error);
        if (video.error && video.error.code === 4) {
-          if (!forceHls && ext === 'm3u8' && Hls.isSupported()) {
+          if (!isNative && !forceHls && ext === 'm3u8' && Hls.isSupported()) {
              console.warn("Native player failed, falling back to Hls.js");
-             setForceHls(true); // This will trigger re-render, we should call initPlayer in next tick or useEffect? Actually we can just wait for re-render to do it if we have a useEffect on forceHls, but initPlayer is closed over it. Let's just call setForceHls which will re-run useEffect.
+             setForceHls(true); 
              return;
           }
-          setError("خطأ في المشغل الداخلي: السيرفر لا يدعم هذا البث، أو الصيغة غير مدعومة لهاتفك. سيتم تخطي المشغل تلقائياً خلال ثواني.");
+          setError("عذراً، نظام هاتفك الأصلي أو السيرفر لا يدعم هذا البث مباشرة. يُرجى النقر على (تشغيل عبر تطبيق MX Player) بالأسفل.");
+       } else {
+          setError("حدث خطأ أثناء تحميل الفيديو. قد يكون البث متوقف أو غير مدعوم.");
        }
        handleStreamError();
     };
